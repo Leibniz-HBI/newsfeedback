@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "newsfeedback"
+version = "0.1.0"
+description = "Tool for extracting and saving news article metadata at regular intervals."
+authors = ["Rahel Winter and Felix Victor Münch"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+click = "*"
+loguru = "*"
+PyYAML = "*"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+pytest-cov = "*"
+black = "*"
+coverage = "*"
+pdoc3 = "*"
+pre-commit = "*"
+isort = "*"
+pylint = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "--cov-report html:tests/coverage --cov=newsfeedback --capture=sys --html=tests/report.html --self-contained-html"
+
+[tool.isort]
+profile = "black"
+
+[tool.poetry.scripts]
+newsfeedback = 'newsfeedback.main:cli'
