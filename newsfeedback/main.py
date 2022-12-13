@@ -1,5 +1,9 @@
 import click
+import pandas as pd
+import trafilatura, re
+from trafilatura import feeds
 from loguru import logger as log
+
 
 @click.command()
 @click.argument("name", type=str)
@@ -25,6 +29,13 @@ def cli_implementation(name: str) -> None:
         str : Greeting
     """
     return f"Hello {name}!"
+
+def get_article_urls_best_case(homepage_url):
+    article_url_list = feeds.find_feed_urls(homepage_url)
+    if len(article_url_list) != 0:
+        print(f'{len(article_url_list)} articles have been found.\r')
+    get_article_urls_best_case.article_url_list = article_url_list
+    return get_article_urls_best_case.article_url_list
 
 if __name__ == "main":
     cli()
