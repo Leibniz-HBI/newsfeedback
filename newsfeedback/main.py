@@ -79,14 +79,19 @@ def get_article_urls_and_metadata_best_case(homepage_url, metadata_wanted):
 
 ### Worst case functions 
 
-def get_article_urls_worst_case(homepage_url):
+def get_article_urls_worst_case(homepage):
     """ Retrieves URLs from a given homepage through beautiful soup, by getting all href attributes of
     an a tag. Prints out the number of articles found if at least one has been retrieved. 
     """
-    article_list = feeds.find_feed_urls(homepage_url)
     article_url_list = []
-    downloaded = trafilatura.fetch_url(homepage_url)
+    if len(homepage) < 80:
+        downloaded = trafilatura.fetch_url(homepage)
+        homepage_url = homepage
+    else:
+        downloaded = homepage
+        homepage_url = "https://www.zeit.de/" # un-hardcode this
     soup = BeautifulSoup(downloaded, 'html.parser')
+
     for a in soup.find_all('a'):
         href = a.get('href')
         http_check = re.search(r'(http)', f'{href}')
@@ -115,11 +120,14 @@ def get_article_urls_worst_case(homepage_url):
     get_article_urls_worst_case.article_url_list = article_url_list
     return get_article_urls_worst_case.article_url_list
 
-def get_article_metadata_worst_case(article_url, metadata_wanted):
+def get_article_metadata_worst_case(article, metadata_wanted):
     """ Extracts predefined (metadata_wanted) metadata from the given article url. 
     Returns an empty dict if no metadata is found.
     """
-    downloaded = trafilatura.fetch_url(article_url)
+    if len(article) < 300:
+        downloaded = trafilatura.fetch_url(article)
+    else:
+        downloaded = article
     if downloaded != None:
         metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
         if metadata != None:
@@ -135,16 +143,17 @@ def get_article_metadata_worst_case(article_url, metadata_wanted):
     get_article_metadata_worst_case.metadata = metadata
     return get_article_metadata_worst_case.metadata
 
-def get_article_urls_and_metadata_worst_case(homepage_url, metadata_wanted): # might be a bit slow
+def get_article_urls_and_metadata_worst_case(homepage, metadata_wanted): # might be a bit slow
     """ Combines get_article_urls_wost_case() and get_article_metadata_worst_case() for a seamless 
     sequence of actions. The results are stored in a dataframe.
     """
-    get_article_urls_worst_case(homepage_url)
+    get_article_urls_worst_case(homepage)
+    homepage_url = "https://www.zeit.de/"
     article_url_list = get_article_urls_worst_case.article_url_list
     article_list = []
     for article_url in article_url_list:
         if article_url != None:
-            print(article_url)
+            print(article_url.encode('utf-8'))
             get_article_metadata_worst_case(article_url, metadata_wanted)
             metadata =  get_article_metadata_worst_case.metadata
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
@@ -162,7 +171,7 @@ def filter_urls(article_url_list):
     Criteria: url ends in word character (-> not a / )"""
     article_url_list_clean = []
     for article in article_url_list:
-        viable_article = re.search(r"((/(\w+-)+\w+-\w+(\.html)?)|/-/\w+)", article)
+        viable_article = re.search(r"((/(\w+-)+\w+-\w+(\.html)?)|/-/\w+)|", article) # adjust regex so that /index end is kicked
         if viable_article:
             article_url_list_clean.append(article)
     print(f'Removed {(len(article_url_list)-len(article_url_list_clean))} superfluous URLs.')
@@ -224,10 +233,45 @@ def accept_pur_abo(homepage_url, class_name):
         text = driver.page_source
     except TimeoutException:
         text = 'Element could not be found, connection timed out.'
-    finally:
-        print(text.encode('utf-8'))
-        driver.quit()
-    return  text
+       
+    #finally:
+        #print(text.encode('utf-8'))
+    accept_pur_abo.driver = driver
+    accept_pur_abo.text = text
+    return  [accept_pur_abo.text, accept_pur_abo.driver]
+
+def get_pur_abo_article_urls(homepage_url, class_name):
+    accept_pur_abo(homepage_url, class_name)
+    get_article_urls_worst_case(accept_pur_abo.text)
+    article_url_list = get_article_urls_worst_case.article_url_list
+    get_pur_abo_article_urls.article_url_list = article_url_list
+    return get_pur_abo_article_urls.article_url_list
+
+def get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wanted):
+    accept_pur_abo(homepage_url, class_name)
+    get_article_urls_and_metadata_worst_case(accept_pur_abo.text, metadata_wanted)
+    df = get_article_urls_and_metadata_worst_case.df
+    get_pur_abo_article_urls_and_metadata.df = df
+    return get_pur_abo_article_urls_and_metadata.df
+
+def get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name, metadata_wanted):
+    accept_pur_abo(homepage_url, class_name)
+    get_article_urls_worst_case(accept_pur_abo.text)
+    article_url_list = get_article_urls_worst_case.article_url_list
+    article_url_list_clean = filter_urls(article_url_list)
+    article_list = []
+    for article_url in article_url_list_clean:
+        if article_url != None:
+            accept_pur_abo(article_url, class_name)
+            get_article_metadata_worst_case(accept_pur_abo.text, metadata_wanted)
+            metadata =  get_article_metadata_worst_case.metadata
+            if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
+                article_list.append(metadata)
+    print(f'{homepage_url}: {len(article_list)} articles have been found.\r')
+    df = pd.DataFrame.from_dict(article_list)
+    print(df)
+    get_article_urls_and_metadata_worst_case.df = df
+    return get_article_urls_and_metadata_worst_case.df
 
 ### Export
 

@@ -5,7 +5,7 @@ import pandas as pd
 from newsfeedback.main import get_article_urls_best_case, get_article_metadata_best_case, get_article_urls_and_metadata_best_case
 from newsfeedback.main import get_article_urls_worst_case, get_article_metadata_worst_case, get_article_urls_and_metadata_worst_case
 from newsfeedback.main import filter_urls, get_filtered_article_urls_and_metadata_best_case, get_filtered_article_urls_and_metadata_worst_case, export_dataframe
-from newsfeedback.main import accept_pur_abo
+from newsfeedback.main import accept_pur_abo, get_pur_abo_article_urls, get_pur_abo_article_urls_and_metadata
 
 class TestBestCasePipeline(object):
     def test_get_article_urls_bestcase_goodurl(self):
@@ -217,10 +217,12 @@ class TestWebsiteSpecificFunctions(object):
         homepage_url = "https://www.zeit.de/"
         class_name = "sp_choice_type_11" # full class names: 'message-component message-button no-children focusable sp_choice_type_11'
         actual = accept_pur_abo(homepage_url, class_name)
+        driver = accept_pur_abo.driver
+        driver.quit()
         error_message = 'Element could not be found, connection timed out.'
         message = ("accept_pur_abo(homepage_url, class_name) "
                   "returned {0}, which is an undesired error message.".format(actual, error_message))
-        assert actual != error_message, message    
+        assert actual[0] != error_message, message    
         
     def test_accept_pur_abo_subscription_button(self):
         """ Checks that a TimeOutException has occurred by asserting whether the
@@ -229,11 +231,51 @@ class TestWebsiteSpecificFunctions(object):
         homepage_url = "https://www.zeit.de/"
         class_name = "js-forward-link-purabo" # full class names: 'option__button option__button--pur js-forward-link-purabo'
         actual = accept_pur_abo(homepage_url, class_name)
+        driver = accept_pur_abo.driver
+        driver.quit()
         error_message = 'Element could not be found, connection timed out.'
         message = ("accept_pur_abo(homepage_url, class_name) did not return "
                    "the desired error message, but instead"
                    "{0}".format(actual, error_message))
-        assert actual == error_message, message   
+        assert actual[0] == error_message, message   
+    
+    def test_get_pur_abo_article_urls(self):
+        """
+        """
+        homepage_url = "https://www.zeit.de/"
+        class_name = "sp_choice_type_11"
+        actual = get_pur_abo_article_urls(homepage_url, class_name)
+        not_expected = 0
+        message = ("get_pur_abo_article_urls(homepage_url, class_name) "
+                   "returned {0}, which is identical "
+                   "to {1}".format(len(actual),not_expected))
+        assert len(actual) != not_expected, message
+
+    def test_get_pur_abo_article_urls_and_metadata(self):
+        """
+        """
+        homepage_url = "https://www.zeit.de/"
+        class_name = "sp_choice_type_11"
+        metadata_wanted = ['title', 'date', 'url', 'description']
+        actual = get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+        not_expected = 0
+        message = ("get_pur_abo_article_urls_and_metadata(homepage_url, class_name) "
+                   "returned {0}, which is identical "
+                   "to {1}".format(actual.shape[0],not_expected))
+        assert actual.shape[0] != not_expected, message
+
+    def get_pur_abo_filtered_article_urls_and_metadata(self):
+        """
+        """
+        homepage_url = "https://www.zeit.de/"
+        class_name = "sp_choice_type_11"
+        metadata_wanted = ['title', 'date', 'url', 'description']
+        actual = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+        not_expected = 0
+        message = ("get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name) "
+                   "returned {0}, which is identical "
+                   "to {1}".format(actual.shape[0],not_expected))
+        assert actual.shape[0] != not_expected, message
 
 class TestExportCSV(object):
     def test_export_bestcase_goodurl(self):
