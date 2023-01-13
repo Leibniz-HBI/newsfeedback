@@ -1,14 +1,16 @@
-import trafilatura, click, re
+import trafilatura, click, re, time
 import pandas as pd
-import time
 from trafilatura import feeds
 from loguru import logger as log
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.firefox.service import Service as FirefoxService
 from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
+from selenium.common.exceptions import TimeoutException
 
 @click.command()
 @click.argument("name", type=str)
@@ -16,7 +18,6 @@ def cli(name: str) -> None:
     """ This internal function is called by the click-decorated function.
     The split into two functions is necessary for documentation purposes as pdoc3
     cannot process click-decorated functions.
-
     Parameters :
         name : str : name argument passed by click
     Returns:
@@ -26,10 +27,8 @@ def cli(name: str) -> None:
 
 def cli_implementation(name: str) -> None:
     """ Greet someone or something by name.
-
     Parameters:
         name : str : Whom to greet
-
     Return:
         str : Greeting
     """
@@ -206,6 +205,31 @@ def get_filtered_article_urls_and_metadata_worst_case(homepage_url, metadata_wan
     print(df)
     get_article_urls_and_metadata_worst_case.df = df
     return get_article_urls_and_metadata_worst_case.df
+
+### Site specific functions
+
+def accept_pur_abo(homepage_url, class_name):
+    """ Finds the iFrame and the consent button and clicks on it, 
+    waiting on the ZEIT homepage to load. Currently not compatible with GeckoDriver.
+    """
+    options = webdriver.ChromeOptions()
+    options.add_argument('headless') # comment out if you want to see what's happening
+    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+    driver.get(homepage_url)
+    try:
+        WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it(0))
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
+        driver.switch_to.default_content()
+        WebDriverWait(driver, 10).until(EC.title_is('ZEIT ONLINE | Nachrichten, News, Hintergründe und Debatten'))
+        text = driver.page_source
+    except TimeoutException:
+        text = 'Element could not be found, connection timed out.'
+    finally:
+        print(text.encode('utf-8'))
+        driver.quit()
+    return  text
+
+### Export
 
 def export_dataframe(df, homepage_url, output_folder):
     """ Exports a given dataframe, naming it based on datetime and homepage url.
