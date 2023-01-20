@@ -10,6 +10,11 @@ python = "^3.8"
 click = "*"
 loguru = "*"
 PyYAML = "*"
+trafilatura = "^1.4.1"
+pandas = "^1.5.3"
+beautifulsoup4 = "^4.11.1"
+selenium = "^4.7.2"
+webdriver-manager = "^3.8.5"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

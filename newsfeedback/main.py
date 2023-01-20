@@ -12,27 +12,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import TimeoutException
 
-@click.command()
-@click.argument("name", type=str)
-def cli(name: str) -> None:
-    """ This internal function is called by the click-decorated function.
-    The split into two functions is necessary for documentation purposes as pdoc3
-    cannot process click-decorated functions.
-    Parameters :
-        name : str : name argument passed by click
-    Returns:
-        None: Nada   
-    """
-    log.info(cli_implementation(name))
-
-def cli_implementation(name: str) -> None:
-    """ Greet someone or something by name.
-    Parameters:
-        name : str : Whom to greet
-    Return:
-        str : Greeting
-    """
-    return f"Hello {name}!"
+@click.group()
+def cli():
+    pass
 
 ### Best case functions
 
@@ -244,8 +226,8 @@ def export_dataframe(df, homepage_url, output_folder):
 
 ### Click
 
-@click.command()
-@click.option('-h','--homepage-url')
+@cli.command(help="collects single url")
+@click.option('-u','--homepage-url')
 def with_click_get_article_urls_best_case(homepage_url):
     """ Retrieves article URLs from a given homepage trafilatura's find_feed_urls function.
     Prints out the number of articles found if at least one has been retrieved. 
