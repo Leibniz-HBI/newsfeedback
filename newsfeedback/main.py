@@ -242,5 +242,18 @@ def export_dataframe(df, homepage_url, output_folder):
     export_dataframe.df_path = df_path
     return export_dataframe.df_path
 
+### Click
+
+@click.command()
+@click.option('-h','--homepage-url')
+def with_click_get_article_urls_best_case(homepage_url):
+    """ Retrieves article URLs from a given homepage trafilatura's find_feed_urls function.
+    Prints out the number of articles found if at least one has been retrieved. 
+    """
+    get_article_urls_best_case(homepage_url)
+    article_url_list = get_article_urls_best_case.article_url_list
+    if len(article_url_list) != 0:
+        click.echo(f'{homepage_url}: {len(article_url_list)} articles have been found.\r')
+     
 if __name__ == "main":
     cli()

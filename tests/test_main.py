@@ -1,11 +1,17 @@
 """ Test suite for newsfeedback.main
 """
-import pytest
 import pandas as pd
+import click
+from click.testing import CliRunner
 from newsfeedback.main import get_article_urls_best_case, get_article_metadata_best_case, get_article_urls_and_metadata_best_case
 from newsfeedback.main import get_article_urls_worst_case, get_article_metadata_worst_case, get_article_urls_and_metadata_worst_case
 from newsfeedback.main import filter_urls, get_filtered_article_urls_and_metadata_best_case, get_filtered_article_urls_and_metadata_worst_case, export_dataframe
+<<<<<<< Updated upstream
 from newsfeedback.main import accept_pur_abo
+=======
+from newsfeedback.main import accept_pur_abo_homepage, accept_pur_abo_article, get_pur_abo_article_urls, get_pur_abo_article_urls_and_metadata, get_pur_abo_filtered_article_urls_and_metadata
+from newsfeedback.main import with_click_get_article_urls_best_case
+>>>>>>> Stashed changes
 
 class TestBestCasePipeline(object):
     def test_get_article_urls_bestcase_goodurl(self):
@@ -267,3 +273,55 @@ class TestExportCSV(object):
                    "is not identical to the number of entries "
                    "in the exported dataframe ({1}).".format(df.shape[0],df_from_file.shape[0]))                
         assert df.shape[0] == df_from_file.shape[0], message
+<<<<<<< Updated upstream
+=======
+
+    def test_export_unfiltered_pur_abo(self):
+        """ Asserts that the dataframe put into the export function and the final
+        CSV are the same length. The data for the dataframe has been extracted from a 
+        site that has a consent button.
+        """
+        homepage_url = "https://www.zeit.de/"
+        metadata_wanted = ['title', 'date', 'url', 'description']
+        class_name = "sp_choice_type_11"
+        output_folder = "newsfeedback/output"
+        df = get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+        export_dataframe(df, homepage_url, output_folder)
+        df_path = export_dataframe.df_path
+        df_from_file = pd.read_csv(df_path)
+        message = ("The number of entries in the original dataframe ({0}) "
+                   "is not identical to the number of entries "
+                   "in the exported dataframe ({1}).".format(df.shape[0],df_from_file.shape[0]))                
+        assert df.shape[0] == df_from_file.shape[0], message
+
+    def test_export_filtered_pur_abo(self):
+        """ Asserts that the dataframe put into the export function and the final
+        CSV are the same length. The data for the dataframe has been extracted from a 
+        site that has a consent button. Furthermore, the data is filtered.
+        """
+        homepage_url = "https://www.zeit.de/"
+        metadata_wanted = ['title', 'date', 'url', 'description']
+        class_name = "sp_choice_type_11"
+        output_folder = "newsfeedback/output"
+        df = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+        export_dataframe(df, homepage_url, output_folder)
+        df_path = export_dataframe.df_path
+        df_from_file = pd.read_csv(df_path)
+        message = ("The number of entries in the original dataframe ({0}) "
+                   "is not identical to the number of entries "
+                   "in the exported dataframe ({1}).".format(df.shape[0],df_from_file.shape[0]))                
+        assert df.shape[0] == df_from_file.shape[0], message
+
+class TestClickBestCase(object):
+    def test_with_click_get_article_urls_bestcase(self):
+        runner = CliRunner()
+        result = runner.invoke(with_click_get_article_urls_best_case, input="--h 'https://www.spiegel.de/'\n")
+        actual = result.output
+        not_expected = ''
+        message = ("with_click_get_article_urls_best_case(homepage_url) "
+                   "returned {0}, which is identical "
+                   "to {1} (= empty).".format(actual,not_expected))
+        click.echo(actual)
+        #assert len(actual) != not_expected, message
+        assert actual != '', message
+>>>>>>> Stashed changes
