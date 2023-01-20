@@ -42,13 +42,13 @@ def get_article_urls_best_case(homepage_url):
     """
     article_url_list = feeds.find_feed_urls(homepage_url)
     if len(article_url_list) != 0:
-        print(f'{len(article_url_list)} articles have been found.\r')
+        print(f'{homepage_url}: {len(article_url_list)} articles have been found.\r')
     get_article_urls_best_case.article_url_list = article_url_list
     return get_article_urls_best_case.article_url_list
 
 def get_article_metadata_best_case(article_url, metadata_wanted):
     """ Extracts predefined (metadata_wanted) metadata from the given article url. Returns an empty list if
-    no metadata is found.
+    no metadata is found. Only prints message if no metadata could be found.
     """
     downloaded = trafilatura.fetch_url(article_url)
     metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
@@ -59,6 +59,7 @@ def get_article_metadata_best_case(article_url, metadata_wanted):
             metadata.pop(key, None)
     else:
         metadata = []
+        print(f'No metadata could be found.')
     get_article_metadata_best_case.metadata = metadata
     return get_article_metadata_best_case.metadata
     
@@ -75,6 +76,7 @@ def get_article_urls_and_metadata_best_case(homepage_url, metadata_wanted):
         article_list.append(metadata)
     df = pd.DataFrame.from_dict(article_list)
     get_article_urls_and_metadata_best_case.df = df
+    print(f'{homepage_url}: {df.shape[0]} articles with metadata have been found.')
     return get_article_urls_and_metadata_best_case.df
 
 ### Worst case functions 
@@ -116,7 +118,7 @@ def get_article_urls_worst_case(homepage):
                     article_url_list.append(href)
     article_url_list = list(dict.fromkeys(article_url_list)) # refactor these!
     article_url_list = list(filter(lambda item: item is not None, article_url_list))
-    print(f'{len(article_url_list)} links have been found.\r')
+    print(f'{homepage_url}: {len(article_url_list)} links have been found.\r')
     get_article_urls_worst_case.article_url_list = article_url_list
     return get_article_urls_worst_case.article_url_list
 
@@ -139,6 +141,7 @@ def get_article_metadata_worst_case(article, metadata_wanted):
             metadata = {}
     else:  
         metadata = {}
+        print(f'No metadata could be found.')
     #metadata = {metadata_key: metadata_value for metadata_key, metadata_value in metadata.items() if metadata_key and metadata_value}
     get_article_metadata_worst_case.metadata = metadata
     return get_article_metadata_worst_case.metadata
@@ -160,7 +163,6 @@ def get_article_urls_and_metadata_worst_case(homepage, metadata_wanted): # might
                 article_list.append(metadata)
     print(f'{homepage_url}: {len(article_list)} articles have been found.\r')
     df = pd.DataFrame.from_dict(article_list)
-    print(df)
     get_article_urls_and_metadata_worst_case.df = df
     return get_article_urls_and_metadata_worst_case.df
 
@@ -170,11 +172,12 @@ def filter_urls(article_url_list):
     """ Filters out non-viable article URLs through a whitelist.
     Criteria: url ends in word character (-> not a / )"""
     article_url_list_clean = []
+    year = time.strftime(r"%Y")
     for article in article_url_list:
-        viable_article = re.search(r"((/(\w+-)+\w+-\w+(\.html)?)|/-/\w+)|", article) # adjust regex so that /index end is kicked
+        viable_article = re.search(fr"((/(\w+-)+\w+-\w+(\.html)?)|/-/\w+|{year})", article) # adjust regex so that /index end is kicked
         if viable_article:
             article_url_list_clean.append(article)
-    print(f'Removed {(len(article_url_list)-len(article_url_list_clean))} superfluous URLs.')
+    print(f'Removed {(len(article_url_list)-len(article_url_list_clean))} URLs.')
     filter_urls.article_url_list_clean = article_url_list_clean
     return filter_urls.article_url_list_clean
 
@@ -193,6 +196,7 @@ def get_filtered_article_urls_and_metadata_best_case(homepage_url, metadata_want
             article_list.append(metadata)
     df = pd.DataFrame.from_dict(article_list)
     get_article_urls_and_metadata_best_case.df = df
+    print(f'{homepage_url}: {len(article_list)} articles with metadata have been found.')
     return get_article_urls_and_metadata_best_case.df
     
 def get_filtered_article_urls_and_metadata_worst_case(homepage_url, metadata_wanted):
@@ -209,17 +213,17 @@ def get_filtered_article_urls_and_metadata_worst_case(homepage_url, metadata_wan
             metadata =  get_article_metadata_worst_case.metadata
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
                 article_list.append(metadata)
-    print(f'{homepage_url}: {len(article_list)} articles have been found.\r')
+    print(f'{homepage_url}: {len(article_list)} articles with metadata have been found.\r')
     df = pd.DataFrame.from_dict(article_list)
-    print(df)
     get_article_urls_and_metadata_worst_case.df = df
     return get_article_urls_and_metadata_worst_case.df
 
 ### Site specific functions
 
-def accept_pur_abo(homepage_url, class_name):
+def accept_pur_abo_homepage(homepage_url, class_name):
     """ Finds the iFrame and the consent button and clicks on it, 
     waiting on the ZEIT homepage to load. Currently not compatible with GeckoDriver.
+    Output is the source code of the page, as well as the driver.
     """
     options = webdriver.ChromeOptions()
     options.add_argument('headless') # comment out if you want to see what's happening
@@ -233,57 +237,122 @@ def accept_pur_abo(homepage_url, class_name):
         text = driver.page_source
     except TimeoutException:
         text = 'Element could not be found, connection timed out.'
-       
-    #finally:
-        #print(text.encode('utf-8'))
-    accept_pur_abo.driver = driver
-    accept_pur_abo.text = text
-    return  [accept_pur_abo.text, accept_pur_abo.driver]
+        print(text)
+    accept_pur_abo_homepage.driver = driver
+    accept_pur_abo_homepage.text = text
+    return  [accept_pur_abo_homepage.text, accept_pur_abo_homepage.driver]
+
+def accept_pur_abo_article(article_list, class_name):
+    """ Finds the iFrame and the consent button and clicks on it, 
+    waiting on the first ZEIT article in the article list
+    to load. Driver is not quit, so that further extraction can
+    take place without repeat button-clicking. Currently not compatible 
+    with GeckoDriver.Output is the source code of the page and the driver.
+    """
+    options = webdriver.ChromeOptions()
+    options.add_argument('headless') # comment out if you want to see what's happening
+    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+    driver.get(article_list[0])
+    try:
+        WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it(0))
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
+        driver.switch_to.default_content()
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]'))) 
+        text = driver.page_source
+    except TimeoutException:
+        text = 'Element could not be found, connection timed out.'
+        print(text)
+    accept_pur_abo_article.driver = driver
+    accept_pur_abo_article.text = text
+    return  [accept_pur_abo_article.text, accept_pur_abo_article.driver]
 
 def get_pur_abo_article_urls(homepage_url, class_name):
-    accept_pur_abo(homepage_url, class_name)
-    get_article_urls_worst_case(accept_pur_abo.text)
-    article_url_list = get_article_urls_worst_case.article_url_list
-    get_pur_abo_article_urls.article_url_list = article_url_list
+    """ Extracts the article URLs from the source code of the homepage.
+    Closes the driver after extraction and outputs the article URL list.
+    """
+    try:
+        accept_pur_abo_homepage(homepage_url, class_name)
+        get_article_urls_worst_case(accept_pur_abo_homepage.text)
+        article_url_list = get_article_urls_worst_case.article_url_list
+        get_pur_abo_article_urls.article_url_list = article_url_list
+        driver = accept_pur_abo_homepage.driver
+        driver.quit()
+    except:
+        print('Unexpected error occured.')
     return get_pur_abo_article_urls.article_url_list
 
 def get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wanted):
-    accept_pur_abo(homepage_url, class_name)
-    get_article_urls_and_metadata_worst_case(accept_pur_abo.text, metadata_wanted)
-    df = get_article_urls_and_metadata_worst_case.df
+    """ Extracts the article URLs and metadata, relying on two successive 
+    selenium webdriver executions. Outputs the dataframe of article URLs
+    and metadata.
+    """
+    article_url_list = get_article_urls_worst_case.article_url_list
+    accept_pur_abo_homepage(homepage_url, class_name)
+    homepage_url = "https://www.zeit.de/"
+    get_article_urls_worst_case(accept_pur_abo_homepage.text)
+    article_url_list = get_article_urls_worst_case.article_url_list
+    article_list = []
+    driver = accept_pur_abo_homepage.driver
+    driver.quit()
+    accept_pur_abo_article(article_url_list,class_name)
+    driver = accept_pur_abo_article.driver
+    for article_url in article_url_list:
+        if article_url != None:
+            driver.get(article_url)
+            article_page_source = driver.page_source
+            get_article_metadata_worst_case(article_page_source, metadata_wanted)
+            metadata =  get_article_metadata_worst_case.metadata
+            if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
+                article_list.append(metadata)
+    print(f'{homepage_url}: {len(article_list)} articles with metadata have been found.\r')
+    driver.quit()
+    df = pd.DataFrame.from_dict(article_list)
     get_pur_abo_article_urls_and_metadata.df = df
     return get_pur_abo_article_urls_and_metadata.df
 
 def get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name, metadata_wanted):
-    accept_pur_abo(homepage_url, class_name)
-    get_article_urls_worst_case(accept_pur_abo.text)
+    """ Extracts the article URLs and metadata, relying on two successive 
+    selenium webdriver executions. URLs are filtered before metadata is 
+    extracted. Outputs the dataframe of article URLs and metadata.
+    """
+    accept_pur_abo_homepage(homepage_url, class_name)
+    homepage_url = "https://www.zeit.de/"
+    get_article_urls_worst_case(accept_pur_abo_homepage.text)
     article_url_list = get_article_urls_worst_case.article_url_list
+    driver = accept_pur_abo_homepage.driver
+    driver.quit()
     article_url_list_clean = filter_urls(article_url_list)
     article_list = []
+    accept_pur_abo_article(article_url_list_clean,class_name)
+    driver = accept_pur_abo_article.driver
     for article_url in article_url_list_clean:
         if article_url != None:
-            accept_pur_abo(article_url, class_name)
-            get_article_metadata_worst_case(accept_pur_abo.text, metadata_wanted)
+            driver.get(article_url)
+            article_page_source = driver.page_source
+            get_article_metadata_worst_case(article_page_source, metadata_wanted)
             metadata =  get_article_metadata_worst_case.metadata
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
                 article_list.append(metadata)
     print(f'{homepage_url}: {len(article_list)} articles have been found.\r')
+    driver.quit()
     df = pd.DataFrame.from_dict(article_list)
-    print(df)
-    get_article_urls_and_metadata_worst_case.df = df
-    return get_article_urls_and_metadata_worst_case.df
+    get_pur_abo_filtered_article_urls_and_metadata.df = df
+    return get_pur_abo_filtered_article_urls_and_metadata.df
 
 ### Export
 
 def export_dataframe(df, homepage_url, output_folder):
     """ Exports a given dataframe, naming it based on datetime and homepage url.
     """
-    df_name = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-    df_name = df_name.replace(".","") 
-    timestr = time.strftime(r"%Y%m%d-%H%M")
-    df_path = f"{output_folder}/{timestr}-"+f"{df_name}"+f".csv"
-    df.to_csv(df_path, index=False, mode='a')
-    export_dataframe.df_path = df_path
+    try:
+        df_name = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+        df_name = df_name.replace(".","") 
+        timestr = time.strftime(r"%Y%m%d-%H%M")
+        df_path = f"{output_folder}/{timestr}-"+f"{df_name}"+f".csv"
+        df.to_csv(df_path, index=False, mode='a')
+        export_dataframe.df_path = df_path
+    except:
+        print('Unexpected error occurred.')
     return export_dataframe.df_path
 
 if __name__ == "main":
