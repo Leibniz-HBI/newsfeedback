@@ -5,7 +5,7 @@ import pandas as pd
 from newsfeedback.main import get_article_urls_best_case, get_article_metadata_best_case, get_article_urls_and_metadata_best_case
 from newsfeedback.main import get_article_urls_worst_case, get_article_metadata_worst_case, get_article_urls_and_metadata_worst_case
 from newsfeedback.main import filter_urls, get_filtered_article_urls_and_metadata_best_case, get_filtered_article_urls_and_metadata_worst_case, export_dataframe
-from newsfeedback.main import accept_pur_abo
+from newsfeedback.main import accept_pur_abo_homepage, accept_pur_abo_article, get_pur_abo_article_urls, get_pur_abo_article_urls_and_metadata, get_pur_abo_filtered_article_urls_and_metadata
 
 class TestBestCasePipeline(object):
     def test_get_article_urls_bestcase_goodurl(self):
@@ -216,11 +216,14 @@ class TestWebsiteSpecificFunctions(object):
         """
         homepage_url = "https://www.zeit.de/"
         class_name = "sp_choice_type_11" # full class names: 'message-component message-button no-children focusable sp_choice_type_11'
-        actual = accept_pur_abo(homepage_url, class_name)
+        homepage_title = "ZEIT ONLINE | Nachrichten, News, Hintergründe und Debatten"
+        actual = accept_pur_abo_homepage(homepage_url, class_name)
+        driver = accept_pur_abo_homepage.driver
+        driver.quit()
         error_message = 'Element could not be found, connection timed out.'
         message = ("accept_pur_abo(homepage_url, class_name) "
                   "returned {0}, which is an undesired error message.".format(actual, error_message))
-        assert actual != error_message, message    
+        assert actual[0] != error_message, message    
         
     def test_accept_pur_abo_subscription_button(self):
         """ Checks that a TimeOutException has occurred by asserting whether the
@@ -228,16 +231,78 @@ class TestWebsiteSpecificFunctions(object):
         """
         homepage_url = "https://www.zeit.de/"
         class_name = "js-forward-link-purabo" # full class names: 'option__button option__button--pur js-forward-link-purabo'
-        actual = accept_pur_abo(homepage_url, class_name)
+        actual = accept_pur_abo_homepage(homepage_url, class_name)
+        driver = accept_pur_abo_homepage.driver
+        driver.quit()
         error_message = 'Element could not be found, connection timed out.'
         message = ("accept_pur_abo(homepage_url, class_name) did not return "
                    "the desired error message, but instead"
                    "{0}".format(actual, error_message))
-        assert actual == error_message, message   
+        assert actual[0] == error_message, message   
+    
+    def test_accept_pur_abo_article_consent_button(self):
+        """ Asserts whether the elements (iframe, button and homepage title) were found by printing
+        out the page source of the article.
+        """
+        article_url_list = ["https://www.zeit.de/zett/politik/2022-12/mihran-dabag-voelkermord-jesiden-bundestag-kriegsgewalt", "https://www.zeit.de/gesellschaft/zeitgeschehen/2023-01/illerkirchberg-mord-buergerdialog-ece-s-vater"]
+        class_name = "sp_choice_type_11" # full class names: 'message-component message-button no-children focusable sp_choice_type_11'
+        actual = accept_pur_abo_article(article_url_list, class_name)
+        driver = accept_pur_abo_article.driver
+        driver.quit()
+        error_message = 'Element could not be found, connection timed out.'
+        message = ("accept_pur_abo(homepage_url, class_name) "
+                  "returned {0}, which is an undesired error message.".format(actual, error_message))
+        assert actual[0] != error_message, message 
+
+    def test_get_pur_abo_article_urls(self):
+        """ Asserts that article URLs are returned after the consent button
+        has been clicked.
+        """
+        homepage_url = "https://www.zeit.de/"
+        class_name = "sp_choice_type_11"
+        actual = get_pur_abo_article_urls(homepage_url, class_name)
+        not_expected = 0
+        message = ("get_pur_abo_article_urls(homepage_url, class_name) "
+                   "returned {0}, which is identical "
+                   "to {1}".format(len(actual),not_expected))
+        assert len(actual) != not_expected, message
+
+    def test_get_pur_abo_article_urls_and_metadata(self):
+        """ Asserts that article URLs and metadata are returned after the consent
+        buttons for both the homepage and the first article page have been clicked.
+        """
+        homepage_url = "https://www.zeit.de/"
+        class_name = "sp_choice_type_11"
+        metadata_wanted = ['title', 'date', 'url', 'description']
+        actual = get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+        #driver = get_pur_abo_article_urls_and_metadata.driver
+        #driver.quit()
+        not_expected = 0
+        message = ("get_pur_abo_article_urls_and_metadata(homepage_url, class_name) "
+                   "returned {0}, which is identical "
+                   "to {1}".format(actual.shape[0],not_expected))
+        assert actual.shape[0] != not_expected, message
+
+    def get_pur_abo_filtered_article_urls_and_metadata(self):
+        """ Asserts that article URLs and metadata are returned after the consent
+        buttons for both the homepage and the first article page have been clicked.
+        Articles are filtered prior to metadata extraction.
+        """
+        homepage_url = "https://www.zeit.de/"
+        class_name = "sp_choice_type_11"
+        metadata_wanted = ['title', 'date', 'url', 'description']
+        actual = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+        #driver = get_pur_abo_filtered_article_urls_and_metadata.driver
+        #driver.quit()
+        not_expected = 0
+        message = ("get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name) "
+                   "returned {0}, which is identical "
+                   "to {1}".format(actual.shape[0],not_expected))
+        assert actual.shape[0] != not_expected, message
 
 class TestExportCSV(object):
     def test_export_bestcase_goodurl(self):
-        """ Asserts whether the dataframe put into the export function and the final
+        """ Asserts that the dataframe put into the export function and the final
         CSV are the same length. The data for the dataframe has gone through the best case pipeline.
         """
         homepage_url = "https://www.spiegel.de/"
@@ -253,13 +318,49 @@ class TestExportCSV(object):
         assert df.shape[0] == df_from_file.shape[0], message
     
     def test_export_worstcase_goodurl(self):
-        """ Asserts whether the dataframe put into the export function and the final
+        """ Asserts that the dataframe put into the export function and the final
         CSV are the same length. The data for the dataframe has gone through the worst case pipeline.
         """
         homepage_url = "https://www.badische-zeitung.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
         output_folder = "newsfeedback/output"
         df = get_filtered_article_urls_and_metadata_worst_case(homepage_url, metadata_wanted)
+        export_dataframe(df, homepage_url, output_folder)
+        df_path = export_dataframe.df_path
+        df_from_file = pd.read_csv(df_path)
+        message = ("The number of entries in the original dataframe ({0}) "
+                   "is not identical to the number of entries "
+                   "in the exported dataframe ({1}).".format(df.shape[0],df_from_file.shape[0]))                
+        assert df.shape[0] == df_from_file.shape[0], message
+
+    def test_export_unfiltered_pur_abo(self):
+        """ Asserts that the dataframe put into the export function and the final
+        CSV are the same length. The data for the dataframe has been extracted from a 
+        site that has a consent button.
+        """
+        homepage_url = "https://www.zeit.de/"
+        metadata_wanted = ['title', 'date', 'url', 'description']
+        class_name = "sp_choice_type_11"
+        output_folder = "newsfeedback/output"
+        df = get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+        export_dataframe(df, homepage_url, output_folder)
+        df_path = export_dataframe.df_path
+        df_from_file = pd.read_csv(df_path)
+        message = ("The number of entries in the original dataframe ({0}) "
+                   "is not identical to the number of entries "
+                   "in the exported dataframe ({1}).".format(df.shape[0],df_from_file.shape[0]))                
+        assert df.shape[0] == df_from_file.shape[0], message
+
+    def test_export_filtered_pur_abo(self):
+        """ Asserts that the dataframe put into the export function and the final
+        CSV are the same length. The data for the dataframe has been extracted from a 
+        site that has a consent button. Furthermore, the data is filtered.
+        """
+        homepage_url = "https://www.zeit.de/"
+        metadata_wanted = ['title', 'date', 'url', 'description']
+        class_name = "sp_choice_type_11"
+        output_folder = "newsfeedback/output"
+        df = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
         export_dataframe(df, homepage_url, output_folder)
         df_path = export_dataframe.df_path
         df_from_file = pd.read_csv(df_path)
