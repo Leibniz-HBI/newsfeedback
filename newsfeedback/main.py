@@ -12,27 +12,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import TimeoutException
 
-@click.command()
-@click.argument("name", type=str)
-def cli(name: str) -> None:
-    """ This internal function is called by the click-decorated function.
-    The split into two functions is necessary for documentation purposes as pdoc3
-    cannot process click-decorated functions.
-    Parameters :
-        name : str : name argument passed by click
-    Returns:
-        None: Nada   
-    """
-    log.info(cli_implementation(name))
-
-def cli_implementation(name: str) -> None:
-    """ Greet someone or something by name.
-    Parameters:
-        name : str : Whom to greet
-    Return:
-        str : Greeting
-    """
-    return f"Hello {name}!"
+@click.group()
+def cli():
+    pass
 
 ### Best case functions
 
@@ -42,7 +24,7 @@ def get_article_urls_best_case(homepage_url):
     """
     article_url_list = feeds.find_feed_urls(homepage_url)
     if len(article_url_list) != 0:
-        print(f'{homepage_url}: {len(article_url_list)} articles have been found.\r')
+        log.info(f'{homepage_url}: {len(article_url_list)} articles have been found.\r')
     get_article_urls_best_case.article_url_list = article_url_list
     return get_article_urls_best_case.article_url_list
 
@@ -59,7 +41,7 @@ def get_article_metadata_best_case(article_url, metadata_wanted):
             metadata.pop(key, None)
     else:
         metadata = []
-        print(f'No metadata could be found.')
+        log.info(f'No metadata could be found.')
     get_article_metadata_best_case.metadata = metadata
     return get_article_metadata_best_case.metadata
     
@@ -76,7 +58,7 @@ def get_article_urls_and_metadata_best_case(homepage_url, metadata_wanted):
         article_list.append(metadata)
     df = pd.DataFrame.from_dict(article_list)
     get_article_urls_and_metadata_best_case.df = df
-    print(f'{homepage_url}: {df.shape[0]} articles with metadata have been found.')
+    log.info(f'{homepage_url}: {df.shape[0]} articles with metadata have been found.')
     return get_article_urls_and_metadata_best_case.df
 
 ### Worst case functions 
@@ -118,7 +100,7 @@ def get_article_urls_worst_case(homepage):
                     article_url_list.append(href)
     article_url_list = list(dict.fromkeys(article_url_list)) # refactor these!
     article_url_list = list(filter(lambda item: item is not None, article_url_list))
-    print(f'{homepage_url}: {len(article_url_list)} links have been found.\r')
+    log.info(f'{homepage_url}: {len(article_url_list)} links have been found.\r')
     get_article_urls_worst_case.article_url_list = article_url_list
     return get_article_urls_worst_case.article_url_list
 
@@ -141,7 +123,7 @@ def get_article_metadata_worst_case(article, metadata_wanted):
             metadata = {}
     else:  
         metadata = {}
-        print(f'No metadata could be found.')
+        log.info(f'No metadata could be found.')
     #metadata = {metadata_key: metadata_value for metadata_key, metadata_value in metadata.items() if metadata_key and metadata_value}
     get_article_metadata_worst_case.metadata = metadata
     return get_article_metadata_worst_case.metadata
@@ -156,12 +138,12 @@ def get_article_urls_and_metadata_worst_case(homepage, metadata_wanted): # might
     article_list = []
     for article_url in article_url_list:
         if article_url != None:
-            print(article_url.encode('utf-8'))
+            log.info(article_url)
             get_article_metadata_worst_case(article_url, metadata_wanted)
             metadata =  get_article_metadata_worst_case.metadata
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
                 article_list.append(metadata)
-    print(f'{homepage_url}: {len(article_list)} articles have been found.\r')
+    log.info(f'{homepage_url}: {len(article_list)} articles have been found.\r')
     df = pd.DataFrame.from_dict(article_list)
     get_article_urls_and_metadata_worst_case.df = df
     return get_article_urls_and_metadata_worst_case.df
@@ -170,14 +152,14 @@ def get_article_urls_and_metadata_worst_case(homepage, metadata_wanted): # might
 
 def filter_urls(article_url_list):
     """ Filters out non-viable article URLs through a whitelist.
-    Criteria: url ends in word character (-> not a / )"""
+    Criteria: url ends in word character (-> not a / ) or includes the current year"""
     article_url_list_clean = []
     year = time.strftime(r"%Y")
     for article in article_url_list:
         viable_article = re.search(fr"((/(\w+-)+\w+-\w+(\.html)?)|/-/\w+|{year})", article) # adjust regex so that /index end is kicked
         if viable_article:
             article_url_list_clean.append(article)
-    print(f'Removed {(len(article_url_list)-len(article_url_list_clean))} URLs.')
+    log.info(f'Removed {(len(article_url_list)-len(article_url_list_clean))} URLs.')
     filter_urls.article_url_list_clean = article_url_list_clean
     return filter_urls.article_url_list_clean
 
@@ -196,7 +178,7 @@ def get_filtered_article_urls_and_metadata_best_case(homepage_url, metadata_want
             article_list.append(metadata)
     df = pd.DataFrame.from_dict(article_list)
     get_article_urls_and_metadata_best_case.df = df
-    print(f'{homepage_url}: {len(article_list)} articles with metadata have been found.')
+    log.info(f'{homepage_url}: {len(article_list)} articles with metadata have been found.')
     return get_article_urls_and_metadata_best_case.df
     
 def get_filtered_article_urls_and_metadata_worst_case(homepage_url, metadata_wanted):
@@ -213,7 +195,7 @@ def get_filtered_article_urls_and_metadata_worst_case(homepage_url, metadata_wan
             metadata =  get_article_metadata_worst_case.metadata
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
                 article_list.append(metadata)
-    print(f'{homepage_url}: {len(article_list)} articles with metadata have been found.\r')
+    log.info(f'{homepage_url}: {len(article_list)} articles with metadata have been found.\r')
     df = pd.DataFrame.from_dict(article_list)
     get_article_urls_and_metadata_worst_case.df = df
     return get_article_urls_and_metadata_worst_case.df
@@ -237,12 +219,12 @@ def accept_pur_abo_homepage(homepage_url, class_name):
         text = driver.page_source
     except TimeoutException:
         text = 'Element could not be found, connection timed out.'
-        print(text)
+        log.info(text)
     accept_pur_abo_homepage.driver = driver
     accept_pur_abo_homepage.text = text
     return  [accept_pur_abo_homepage.text, accept_pur_abo_homepage.driver]
 
-def accept_pur_abo_article(article_list, class_name):
+def accept_pur_abo_article(article_url_list, class_name):
     """ Finds the iFrame and the consent button and clicks on it, 
     waiting on the first ZEIT article in the article list
     to load. Driver is not quit, so that further extraction can
@@ -252,7 +234,7 @@ def accept_pur_abo_article(article_list, class_name):
     options = webdriver.ChromeOptions()
     options.add_argument('headless') # comment out if you want to see what's happening
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-    driver.get(article_list[0])
+    driver.get(article_url_list[0])
     try:
         WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it(0))
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
@@ -261,7 +243,7 @@ def accept_pur_abo_article(article_list, class_name):
         text = driver.page_source
     except TimeoutException:
         text = 'Element could not be found, connection timed out.'
-        print(text)
+        log.info(text)
     accept_pur_abo_article.driver = driver
     accept_pur_abo_article.text = text
     return  [accept_pur_abo_article.text, accept_pur_abo_article.driver]
@@ -278,7 +260,7 @@ def get_pur_abo_article_urls(homepage_url, class_name):
         driver = accept_pur_abo_homepage.driver
         driver.quit()
     except:
-        print('Unexpected error occured.')
+        log.info('Unexpected error occured.')
     return get_pur_abo_article_urls.article_url_list
 
 def get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wanted):
@@ -304,7 +286,7 @@ def get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wan
             metadata =  get_article_metadata_worst_case.metadata
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
                 article_list.append(metadata)
-    print(f'{homepage_url}: {len(article_list)} articles with metadata have been found.\r')
+    log.info(f'{homepage_url}: {len(article_list)} articles with metadata have been found.\r')
     driver.quit()
     df = pd.DataFrame.from_dict(article_list)
     get_pur_abo_article_urls_and_metadata.df = df
@@ -333,7 +315,7 @@ def get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name, met
             metadata =  get_article_metadata_worst_case.metadata
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
                 article_list.append(metadata)
-    print(f'{homepage_url}: {len(article_list)} articles have been found.\r')
+    log.info(f'{homepage_url}: {len(article_list)} articles have been found.\r')
     driver.quit()
     df = pd.DataFrame.from_dict(article_list)
     get_pur_abo_filtered_article_urls_and_metadata.df = df
@@ -352,8 +334,145 @@ def export_dataframe(df, homepage_url, output_folder):
         df.to_csv(df_path, index=False, mode='a')
         export_dataframe.df_path = df_path
     except:
-        print('Unexpected error occurred.')
+        log.info('Unexpected error occurred.')
     return export_dataframe.df_path
+
+### Click
+
+## BEST CASE 
+
+@cli.command(help='[BEST CASE] - Retrieves article URLs from homepage URL in the best case pipeline.')
+@click.option('-u','--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+def get_articles_bestcase(homepage_url):
+    get_article_urls_best_case(homepage_url)
+    #article_url_list = get_article_urls_best_case.article_url_list
+     
+@cli.command(help="[BEST CASE] - Retrieves metadata from an article URL in the best case pipeline.")
+@click.option('-a', '--article-url',
+              help='This is the article URL you extract metadata from.')
+@click.option('-m', '--metadata-wanted', default="['title', 'date', 'url', 'description']",
+              help='This is the metadata you want from the article, put in as a python list of strings.')
+def get_metadata_bestcase(article_url, metadata_wanted):
+    get_article_metadata_best_case(article_url, metadata_wanted)
+
+@cli.command(help="[BEST CASE] - Retrieves metadata from an article URL in the best case pipeline.")
+@click.option('-u','--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-m', '--metadata-wanted', default="['title', 'date', 'url', 'description']",
+              help='This is the metadata you want from the article, put in as a python list of strings.')
+def get_both_bestcase(homepage_url, metadata_wanted):
+    get_article_urls_and_metadata_best_case(homepage_url, metadata_wanted)
+
+## WORST CASE
+
+@cli.command(help="[WORST CASE] - Retrieves article URLs from homepage URL in the worst case pipeline.")
+@click.option('-p', '--homepage',
+              help='This is the URL or source code you extract the article URLs from.')
+def get_articles_worstcase(homepage_url):
+    get_article_urls_worst_case(homepage)
+
+@cli.command(help="[WORST CASE] - Retrieves metadata from an article URL in the worst case pipeline.")
+@click.option('-a', '--article-url',
+              help='This is the article URL you extract metadata from.')
+@click.option('-m', '--metadata-wanted', default="['title', 'date', 'url', 'description']",
+              help='This is the metadata you want from the article, put in as a python list of strings.')
+def get_metadata_worstcase(article_url, metadata_wanted):
+    get_article_metadata_worst_case(article_url, metadata_wanted)
+
+@cli.command(help="[WORST CASE] - Retrieves metadata from an article URL in the worst case pipeline.")
+@click.option('-u','--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-m', '--metadata-wanted', default="['title', 'date', 'url', 'description']",
+              help='This is the metadata you want from the article, put in as a python list of strings.')
+def get_both_worstcase(homepage_url, metadata_wanted):
+    get_article_urls_and_metadata_worst_case(homepage_url, metadata_wanted)
+
+## FILTERED CONTENT
+
+@cli.command(help="Filters nonviable URLs out of article URL list.")
+@click.option('-l', '--article-url-list',
+             help='This is the list of article URLs to be filtered')
+def filter_articles(article_url_list):
+    filter_urls(article_url_list)
+
+@cli.command(help='[FILTERED] [BEST CASE] - Filters nonviable URLs out of article list retrieved from a homepage URL, '
+                'then extracts article metadata in the best case pipeline.')
+@click.option('-u', '--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-m', '--metadata-wanted', default="['title', 'date', 'url', 'description']",
+              help='This is the metadata you want from the article, put in as a python list of strings.')
+def filter_both_bestcase(homepage_url, metadata_wanted):
+    get_filtered_article_urls_and_metadata_best_case(homepage_url,metadata_wanted)
+
+@cli.command(help='[FILTERED] [WORST CASE] - Filters nonviable URLs out of article list retrieved from a homepage URL, '
+                'then extracts article metadata in the worst case pipeline.')
+@click.option('-u', '--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-m', '--metadata-wanted', default="['title', 'date', 'url', 'description']",
+              help='This is the metadata you want from the article, put in as a python list of strings.')
+def filter_both_worstcase():
+    get_filtered_article_urls_and_metadata_worst_case(homepage_url, metadata_wanted)
+
+# Explain the Pur Abo better in this help text:
+@cli.command(help='Presses the consent button on the homepage of a website with a so-called "Pur Abo".')
+@click.option('-u', '--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-c', '--class-name', default='sp_choice_type_11',
+              help='This is the class name of the consent button. If no name is given, '
+              'newsfeedback uses the class name used by ZEIT Online for their consent button.')
+def consent_button_homepage(homepage_url, class_name):
+    accept_pur_abo_homepage(homepage_url, class_name)
+
+@cli.command(help='Presses the consent button before retrieving article metadata.')
+@click.option('-l', '--article-url-list',
+              help='This is the list of article URLs retrieved from the homepage.')
+@click.option('-c', '--class-name', default='sp_choice_type_11',
+              help='This is the class name of the consent button. If no name is given, '
+              'newsfeedback uses the class name used by ZEIT Online for their consent button.')
+def consent_button_article(article_url_list, class_name):
+    accept_pur_abo_article(article_url_list, class_name)
+
+@cli.command(help='Retrieves article URLs from a homepage with a consent button barrier.')
+@click.option('-u', '--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-c', '--class-name', default='sp_choice_type_11',
+              help='This is the class name of the consent button. If no name is given, '
+              'newsfeedback uses the class name used by ZEIT Online for their consent button.')
+def consent_articles(homepage_url, class_name):
+    get_pur_abo_article_urls(homepage_url, class_name)
+
+@cli.command(help='Retrieves article URLs and metadata from a homepage with a consent button barrier.')
+@click.option('-u', '--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-c', '--class-name', default='sp_choice_type_11',
+              help='This is the class name of the consent button. If no name is given, '
+              'newsfeedback uses the class name used by ZEIT Online for their consent button.')
+@click.option('-m', '--metadata-wanted', default="['title', 'date', 'url', 'description']",
+              help='This is the metadata you want from the article, put in as a python list of strings.')
+def consent_both(homepage_url, class_name, metadata_wanted):
+    get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+
+@cli.command(help='[FILTERED] - Retrieves article URLs and metadata from a homepage with a consent button barrier.')
+@click.option('-u', '--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-c', '--class-name', default='sp_choice_type_11',
+              help='This is the class name of the consent button. If no name is given, '
+              'newsfeedback uses the class name used by ZEIT Online for their consent button.')
+@click.option('-m', '--metadata-wanted', default="['title', 'date', 'url', 'description']",
+              help='This is the metadata you want from the article, put in as a python list of strings.')
+def filter_consent_both(homepage_url, class_name, metadata_wanted):
+    get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+
+'''@cli.command(help='Exports the dataframe created in the pipeline.')
+@click.option('-d', '--dataframe',
+              help='The dataframe you have created.')
+@click.option('-u', '--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-o', '--output-folder', default='newsfeedback/output',
+              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+def export_result()'''
+
 
 if __name__ == "main":
     cli()
