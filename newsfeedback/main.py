@@ -1,4 +1,4 @@
-import trafilatura, click, re, time
+import trafilatura, click, re, time, sys
 import pandas as pd
 from trafilatura import feeds
 from loguru import logger as log
@@ -12,6 +12,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import TimeoutException
 
+log.add(sys.stderr, format = "<red>[{level}]</red> : <green>{message}</green> @ {time}", colorize=True)
+
 @click.group()
 def cli():
     pass
@@ -24,7 +26,9 @@ def get_article_urls_best_case(homepage_url):
     """
     article_url_list = feeds.find_feed_urls(homepage_url)
     if len(article_url_list) != 0:
-        log.info(f'{homepage_url}: {len(article_url_list)} articles have been found.\r')
+        log.info(f'{homepage_url}: {len(article_url_list)} articles were found.\r')
+    else:
+        log.error(f'{homepage_url}: No articles were found.')
     get_article_urls_best_case.article_url_list = article_url_list
     return get_article_urls_best_case.article_url_list
 
@@ -39,9 +43,10 @@ def get_article_metadata_best_case(article_url, metadata_wanted):
         dict_keys_to_pop = [key for key in dict_keys if key not in metadata_wanted]
         for key in dict_keys_to_pop: 
             metadata.pop(key, None)
+        log.info(f'{article_url}: Metadata was found.')
     else:
         metadata = []
-        log.info(f'No metadata could be found.')
+        log.error(f'{article_url}: No metadata could be found.')
     get_article_metadata_best_case.metadata = metadata
     return get_article_metadata_best_case.metadata
     
@@ -58,7 +63,10 @@ def get_article_urls_and_metadata_best_case(homepage_url, metadata_wanted):
         article_list.append(metadata)
     df = pd.DataFrame.from_dict(article_list)
     get_article_urls_and_metadata_best_case.df = df
-    log.info(f'{homepage_url}: {df.shape[0]} articles with metadata have been found.')
+    if df.shape[0] != 0:
+        log.info(f'{homepage_url}: {df.shape[0]} articles with metadata were found.')
+    else:
+        log.error(f'{homepage_url}: No articles with metadata were found.')
     return get_article_urls_and_metadata_best_case.df
 
 ### Worst case functions 
@@ -119,11 +127,13 @@ def get_article_metadata_worst_case(article, metadata_wanted):
             dict_keys_to_pop = [key for key in dict_keys if key not in metadata_wanted]
             for key in dict_keys_to_pop: 
                 metadata.pop(key, None)
+            log.info(f'Metadata was found.')  
         else:
             metadata = {}
+            log.error(f'No metadata was found.')
     else:  
         metadata = {}
-        log.info(f'No metadata could be found.')
+        log.error(f'No metadata was found.')
     #metadata = {metadata_key: metadata_value for metadata_key, metadata_value in metadata.items() if metadata_key and metadata_value}
     get_article_metadata_worst_case.metadata = metadata
     return get_article_metadata_worst_case.metadata
@@ -159,9 +169,26 @@ def filter_urls(article_url_list):
         viable_article = re.search(fr"((/(\w+-)+\w+-\w+(\.html)?)|/-/\w+|{year})", article) # adjust regex so that /index end is kicked
         if viable_article:
             article_url_list_clean.append(article)
-    log.info(f'Removed {(len(article_url_list)-len(article_url_list_clean))} URLs.')
+    removed = (len(article_url_list)-len(article_url_list_clean))
+    if removed != 0:
+        log.info(f'Removed {removed} URLs.')
+    else:
+        log.error(f'Removed no URLs.')
     filter_urls.article_url_list_clean = article_url_list_clean
     return filter_urls.article_url_list_clean
+
+def get_filtered_article_urls(homepage_url):
+    """ Filters articles extracted from a worst case pipeline URL. 
+    """
+    get_article_urls_worst_case(homepage_url)
+    article_url_list = get_article_urls_worst_case.article_url_list
+    article_url_list_clean = filter_urls(article_url_list)
+    if len(article_url_list_clean) != 0:
+        log.info(f'{homepage_url}: {len(article_url_list_clean)} viable URLs were found.')
+    else:
+        log.error(f'{homepage_url}: No viable articles were found.')
+    get_filtered_article_urls.article_url_list_clean = article_url_list_clean
+    return get_filtered_article_urls.article_url_list_clean
 
 def get_filtered_article_urls_and_metadata_best_case(homepage_url, metadata_wanted):
     """ Combines get_article_urls_best_case(), filter_urls() and get_article_metadata_best_case()
@@ -363,13 +390,13 @@ def get_metadata_bestcase(article_url, metadata_wanted):
               help='This is the metadata you want from the article, put in as a python list of strings.')
 def get_both_bestcase(homepage_url, metadata_wanted):
     get_article_urls_and_metadata_best_case(homepage_url, metadata_wanted)
-
+    
 ## WORST CASE
 
 @cli.command(help="[WORST CASE] - Retrieves article URLs from homepage URL in the worst case pipeline.")
-@click.option('-p', '--homepage',
+@click.option('-u', '--homepage',
               help='This is the URL or source code you extract the article URLs from.')
-def get_articles_worstcase(homepage_url):
+def get_articles_worstcase(homepage):
     get_article_urls_worst_case(homepage)
 
 @cli.command(help="[WORST CASE] - Retrieves metadata from an article URL in the worst case pipeline.")
@@ -390,11 +417,17 @@ def get_both_worstcase(homepage_url, metadata_wanted):
 
 ## FILTERED CONTENT
 
-@cli.command(help="Filters nonviable URLs out of article URL list.")
+'''@cli.command(help="Filters nonviable URLs out of article URL list.")
 @click.option('-l', '--article-url-list',
              help='This is the list of article URLs to be filtered')
 def filter_articles(article_url_list):
-    filter_urls(article_url_list)
+    filter_urls(article_url_list)'''
+
+@cli.command(help='...')
+@click.option('-u', '--homepage-url',
+                help='...')
+def filter_articles(homepage_url):
+    get_filtered_article_urls(homepage_url)
 
 @cli.command(help='[FILTERED] [BEST CASE] - Filters nonviable URLs out of article list retrieved from a homepage URL, '
                 'then extracts article metadata in the best case pipeline.')

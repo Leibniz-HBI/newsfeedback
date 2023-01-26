@@ -1,11 +1,25 @@
 """ Test suite for newsfeedback.main
 """
-import pytest
+import pytest, sys
 import pandas as pd
+from click.testing import CliRunner
+from _pytest.logging import LogCaptureFixture
+from loguru import logger as log
 from newsfeedback.main import get_article_urls_best_case, get_article_metadata_best_case, get_article_urls_and_metadata_best_case
 from newsfeedback.main import get_article_urls_worst_case, get_article_metadata_worst_case, get_article_urls_and_metadata_worst_case
-from newsfeedback.main import filter_urls, get_filtered_article_urls_and_metadata_best_case, get_filtered_article_urls_and_metadata_worst_case, export_dataframe
+from newsfeedback.main import filter_urls, get_filtered_article_urls_and_metadata_best_case, get_filtered_article_urls_and_metadata_worst_case
+from newsfeedback.main import export_dataframe
 from newsfeedback.main import accept_pur_abo_homepage, accept_pur_abo_article, get_pur_abo_article_urls, get_pur_abo_article_urls_and_metadata, get_pur_abo_filtered_article_urls_and_metadata
+from newsfeedback.main import get_articles_bestcase, get_metadata_bestcase, get_both_bestcase
+from newsfeedback.main import get_articles_worstcase,  get_metadata_worstcase, get_both_worstcase
+from newsfeedback.main import filter_articles, filter_both_bestcase, filter_both_worstcase
+from newsfeedback.main import consent_button_homepage, consent_button_article, consent_articles, consent_both, filter_consent_both
+
+@pytest.fixture
+def caplog(caplog: LogCaptureFixture):
+    handler_id = log.add(caplog.handler, format='{message}')
+    yield caplog
+    log.remove(handler_id)
 
 class TestBestCasePipeline(object):
     def test_get_article_urls_bestcase_goodurl(self):
@@ -29,8 +43,7 @@ class TestBestCasePipeline(object):
                    "returned {0} instead "
                    "of {1}".format(len(actual),expected))
         assert len(actual) == expected, message
-
-     
+    
     def test_get_article_metadata_title_date_url_description_bestcase_goodurl(self):
         """ Asserts whether the desired metadata (in this case: Title, Date, URL, Description) 
         can be extracted from an article
@@ -85,6 +98,8 @@ class TestBestCasePipeline(object):
         assert actual.shape[0] == expected, message     
 
 class TestFilterPipeline(object):
+    ### Not sure if the first two make sense, as the best case pipeline already 
+    ### retrieves viable article URLs. 
     def test_filter_article_urls_bestcase_goodurl(self):
         """ Asserts whether article URLs extracted with
         trafilatura remain following the filtering process.
@@ -368,3 +383,112 @@ class TestExportCSV(object):
                    "is not identical to the number of entries "
                    "in the exported dataframe ({1}).".format(df.shape[0],df_from_file.shape[0]))                
         assert df.shape[0] == df_from_file.shape[0], message
+
+class TestClickBestCase(object):
+    def test_click_get_articles_bestcase_goodurl(self, caplog):
+        """ Asserts whether article URLs have successfully been extracted from a "best case" homepage.
+        """
+        runner = CliRunner()
+        homepage_url = "'https://www.spiegel.de/'"
+        runner.invoke(get_articles_bestcase, f"-u {homepage_url} \n")
+        message = ("get_articles_bestcase(homepage_url) "
+                   "returned no articles.".format(caplog.text))
+        #assert len(actual) != not_expected, message
+        assert "INFO" in caplog.text, message
+
+    def test_click_get_articles_bestcase_badurl(self, caplog):
+        """ Asserts whether article URLs fail to be extracted from a "worst case" homepage.
+        """
+        runner = CliRunner()
+        homepage_url = "'https://www.badische-zeitung.de/'"
+        runner.invoke(get_articles_bestcase, f"-u {homepage_url} \n")
+        message = ("with_click_get_article_urls_best_case(homepage_url) "
+                   "returned articles from a bad URL.".format(caplog.text))
+        #assert len(actual) != not_expected, message
+        assert "ERROR" in caplog.text, message
+
+    def test_click_get_article_metadata_title_date_url_description_bestcase_goodurl(self, caplog):
+        """ Asserts whether the desired metadata (in this case: Title, Date, URL, Description) 
+        can be extracted from an article
+        """
+        runner = CliRunner()
+        article_url = "'https://www.spiegel.de/netzwelt/apps/elon-musk-hetzt-auf-twitter-gegen-anthony-fauci-und-die-queere-community-und-wird-ausgebuht-a-edd3c470-12cb-485d-a6f9-266dc94279de'"
+        runner.invoke(get_metadata_bestcase, f"-a {article_url} \n")
+        message = ("get_metadata_bestcase(article_url, metadata_wanted) "
+                   "returned no metadata.".format(caplog.text))
+        assert "INFO" in caplog.text, message
+
+    def test_click_get_article_metadata_title_date_url_description_bestcase_badurl(self, caplog):
+        """ Asserts whether the desired metadata (in this case: Title, Date, URL, Description) 
+        fail to be extracted from a webpage that is not an article
+        """
+        runner = CliRunner()
+        article_url = "'https://hans-bredow-institut.de/'"
+        runner.invoke(get_metadata_bestcase, f"-a {article_url} \n")
+        message = ("get_metadata_bestcase(article_url, metadata_wanted) "
+                   "returned metadata from a nonviable URL.".format(caplog.text))
+        assert "ERROR" in caplog.text, message    
+    
+    def test_click_get_both_goodurl(self, caplog):
+        """ Asserts whether the desired metadata (in this case: Title, Date, URL, Description) 
+        can be extracted from an article whose URL was previously extracted from a "best case" homepage
+        """
+        runner = CliRunner()
+        homepage_url = "'https://www.spiegel.de/'"
+        runner.invoke(get_both_bestcase, f"-u {homepage_url} \n")
+        message = ("get_both_bestcase(homepage_url, metadata_wanted) "
+                   "returned no articles with metadata.".format(caplog.text))
+        assert "INFO" in caplog.text, message
+        
+    def test_click_get_both_badurl(self, caplog):
+        """
+        """
+        runner = CliRunner()
+        homepage_url = "'https://smo-wiki.leibniz-hbi.de/'"
+        runner.invoke(get_both_bestcase, f"-u {homepage_url} \n")
+        message = ("get_both_bestcase(homepage_url, metadata_wanted) "
+                   "returned articles with metadata from a nonviable URL.".format(caplog.text))
+        assert "ERROR" in caplog.text, message
+
+class TestClickWorstCase(object):
+    def test_click_get_articles_worstcase_goodurl(self, caplog):
+        """
+        """
+        runner = CliRunner()
+        homepage_url = "'https://www.badische-zeitung.de/'"
+        runner.invoke(get_articles_worstcase, f"-u {homepage_url} \n")
+        message = ("get_articles_worstcase(homepage_url) "
+                   "returned no articles.".format(caplog.text))
+        #assert len(actual) != not_expected, message
+        assert "INFO" in caplog.text, message
+
+    def test_click_get_article_metadata_title_date_url_description_worstcase_goodurl(self, caplog):
+        """
+        """
+        runner = CliRunner()
+        article_url = "'https://www.badische-zeitung.de/unwetterwarnung-aufgehoben-aber-schnee-und-eis-sollen-ueber-nacht-zurueckkehren'"
+        runner.invoke(get_metadata_worstcase, f"-a {article_url} \n")
+        message = ("get_metadata_worstcase(article_url, metadata_wanted) "
+                   "returned no metadata.".format(caplog.text))
+        assert "INFO" in caplog.text, message
+
+    def test_click_get_both_worstcase_goodurl(self, caplog):
+        runner = CliRunner()
+        homepage_url = "'https://www.badische-zeitung.de/'"
+        runner.invoke(get_both_worstcase, f"-u {homepage_url} \n")
+        message = ("get_both_worstcase(homepage_url) "
+                   "returned no articles with metadata.".format(caplog.text))
+        #assert len(actual) != not_expected, message
+        assert "INFO" in caplog.text, message
+
+class TestClickFilter(object):
+    def test_filter_urls(self, caplog):
+        """
+        """
+        runner = CliRunner()
+        homepage_url = "'https://www.badische-zeitung.de/'"
+        runner.invoke(filter_articles, f"-u {homepage_url} \n")
+        message = ("filter_articles(homepage_url) "
+                   "removed no articles.".format(caplog.text))
+        #assert len(actual) != not_expected, message
+        assert "INFO" in caplog.text, message
