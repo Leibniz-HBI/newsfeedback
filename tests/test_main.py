@@ -106,8 +106,8 @@ class TestFilterPipeline(object):
         trafilatura remain following the filtering process.
         """
         homepage_url = "https://www.spiegel.de/"
-        get_article_urls_best_case(homepage_url)
-        article_url_list = get_article_urls_best_case.article_url_list
+        article_url_list = get_article_urls_best_case(homepage_url)
+        #article_url_list = get_article_urls_best_case.article_url_list
         actual = filter_urls(article_url_list)
         not_expected = 0 
         message = ("filter_urls(article_url_list) "
@@ -120,8 +120,8 @@ class TestFilterPipeline(object):
         fail to be filtered when using a "bad" URL.
         """
         homepage_url = "https://www.badische-zeitung.de/"
-        get_article_urls_best_case(homepage_url)
-        article_url_list = get_article_urls_best_case.article_url_list
+        article_url_list = get_article_urls_best_case(homepage_url)
+        #article_url_list = get_article_urls_best_case.article_url_list
         actual = filter_urls(article_url_list)
         expected = 0 
         message = ("filter_urls(article_url_list) "
@@ -134,8 +134,8 @@ class TestFilterPipeline(object):
         beautifulsoup remain following the filtering process.
         """
         homepage_url = "https://www.badische-zeitung.de/"
-        get_article_urls_worst_case(homepage_url)
-        article_url_list = get_article_urls_worst_case.article_url_list
+        article_url_list = get_article_urls_worst_case(homepage_url)
+        #article_url_list = get_article_urls_worst_case.article_url_list
         actual = filter_urls(article_url_list)
         not_expected = 0 
         message = ("filter_urls(article_url_list) "
@@ -234,11 +234,12 @@ class TestWebsiteSpecificFunctions(object):
         class_name = "sp_choice_type_11" # full class names: 'message-component message-button no-children focusable sp_choice_type_11'
         homepage_title = "ZEIT ONLINE | Nachrichten, News, Hintergründe und Debatten"
         actual = accept_pur_abo_homepage(homepage_url, class_name)
-        driver = accept_pur_abo_homepage.driver
+        driver = actual[1]
+        #driver = accept_pur_abo_homepage.driver
         driver.quit()
         error_message = 'Element could not be found, connection timed out.'
         message = ("accept_pur_abo(homepage_url, class_name) "
-                  "returned {0}, which is an undesired error message.".format(actual, error_message))
+                  "returned {0}, which is an undesired error message.".format(actual[0], error_message))
         assert actual[0] != error_message, message    
         
     def test_accept_pur_abo_subscription_button(self):
@@ -248,12 +249,13 @@ class TestWebsiteSpecificFunctions(object):
         homepage_url = "https://www.zeit.de/"
         class_name = "js-forward-link-purabo" # full class names: 'option__button option__button--pur js-forward-link-purabo'
         actual = accept_pur_abo_homepage(homepage_url, class_name)
-        driver = accept_pur_abo_homepage.driver
+        driver = actual[1]
+        #driver = accept_pur_abo_homepage.driver
         driver.quit()
         error_message = 'Element could not be found, connection timed out.'
         message = ("accept_pur_abo(homepage_url, class_name) did not return "
                    "the desired error message, but instead"
-                   "{0}".format(actual, error_message))
+                   "{0}".format(actual[0], error_message))
         assert actual[0] == error_message, message   
     
     def test_accept_pur_abo_article_consent_button(self):
@@ -263,11 +265,12 @@ class TestWebsiteSpecificFunctions(object):
         article_url_list = ["https://www.zeit.de/zett/politik/2022-12/mihran-dabag-voelkermord-jesiden-bundestag-kriegsgewalt", "https://www.zeit.de/gesellschaft/zeitgeschehen/2023-01/illerkirchberg-mord-buergerdialog-ece-s-vater"]
         class_name = "sp_choice_type_11" # full class names: 'message-component message-button no-children focusable sp_choice_type_11'
         actual = accept_pur_abo_article(article_url_list, class_name)
-        driver = accept_pur_abo_article.driver
+        #driver = accept_pur_abo_article.driver
+        driver = actual[1]
         driver.quit()
         error_message = 'Element could not be found, connection timed out.'
         message = ("accept_pur_abo(homepage_url, class_name) "
-                  "returned {0}, which is an undesired error message.".format(actual, error_message))
+                  "returned {0}, which is an undesired error message.".format(actual[0], error_message))
         assert actual[0] != error_message, message 
 
     def test_get_pur_abo_article_urls(self):
@@ -325,8 +328,8 @@ class TestExportCSV(object):
         metadata_wanted = ['title', 'date', 'url', 'description']
         output_folder = "newsfeedback/output"
         df = get_filtered_article_urls_and_metadata_best_case(homepage_url, metadata_wanted)
-        export_dataframe(df, homepage_url, output_folder)
-        df_path = export_dataframe.df_path
+        df_path = export_dataframe(df, homepage_url, output_folder)
+        #df_path = export_dataframe.df_path
         df_from_file = pd.read_csv(df_path)
         message = ("The number of entries in the original dataframe ({0}) "
                    "is not identical to the number of entries "
@@ -341,8 +344,8 @@ class TestExportCSV(object):
         metadata_wanted = ['title', 'date', 'url', 'description']
         output_folder = "newsfeedback/output"
         df = get_filtered_article_urls_and_metadata_worst_case(homepage_url, metadata_wanted)
-        export_dataframe(df, homepage_url, output_folder)
-        df_path = export_dataframe.df_path
+        df_path = export_dataframe(df, homepage_url, output_folder)
+        #df_path = export_dataframe.df_path
         df_from_file = pd.read_csv(df_path)
         message = ("The number of entries in the original dataframe ({0}) "
                    "is not identical to the number of entries "
@@ -359,8 +362,8 @@ class TestExportCSV(object):
         class_name = "sp_choice_type_11"
         output_folder = "newsfeedback/output"
         df = get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
-        export_dataframe(df, homepage_url, output_folder)
-        df_path = export_dataframe.df_path
+        df_path = export_dataframe(df, homepage_url, output_folder)
+        # df_path = export_dataframe.df_path
         df_from_file = pd.read_csv(df_path)
         message = ("The number of entries in the original dataframe ({0}) "
                    "is not identical to the number of entries "
@@ -377,8 +380,8 @@ class TestExportCSV(object):
         class_name = "sp_choice_type_11"
         output_folder = "newsfeedback/output"
         df = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
-        export_dataframe(df, homepage_url, output_folder)
-        df_path = export_dataframe.df_path
+        df_path = export_dataframe(df, homepage_url, output_folder)
+        #df_path = export_dataframe.df_path
         df_from_file = pd.read_csv(df_path)
         message = ("The number of entries in the original dataframe ({0}) "
                    "is not identical to the number of entries "
@@ -512,9 +515,9 @@ class TestClickFilter(object):
         homepage_url = "'https://www.badische-zeitung.de/'"
         runner.invoke(filter_both_bestcase, f"-u {homepage_url} \n")
         message = ("filter_both_bestcase(homepage_url, metadata_wanted) "
-                   "removed no articles.".format(caplog.text))
+                   "found viable articles from an unviable homepage.".format(caplog.text))
         #assert len(actual) != not_expected, message
-        assert "INFO" in caplog.text, message
+        assert "ERROR" in caplog.text, message
 
     def test_filter_both_worstcase_goodurl(self, caplog):
         """
