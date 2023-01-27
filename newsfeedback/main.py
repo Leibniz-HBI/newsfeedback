@@ -222,7 +222,10 @@ def get_filtered_article_urls_and_metadata_worst_case(homepage_url, metadata_wan
             metadata =  get_article_metadata_worst_case.metadata
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
                 article_list.append(metadata)
-    log.info(f'{homepage_url}: {len(article_list)} articles with metadata have been found.\r')
+    if len(article_list) != 0:
+        log.info(f'{homepage_url}: {len(article_list)} viable articles with metadata have been found.\r')
+    else:
+        log.error('No viable articles with metadata were found.')
     df = pd.DataFrame.from_dict(article_list)
     get_article_urls_and_metadata_worst_case.df = df
     return get_article_urls_and_metadata_worst_case.df
@@ -244,9 +247,10 @@ def accept_pur_abo_homepage(homepage_url, class_name):
         driver.switch_to.default_content()
         WebDriverWait(driver, 10).until(EC.title_is('ZEIT ONLINE | Nachrichten, News, Hintergründe und Debatten'))
         text = driver.page_source
+        log.info("The consent button was successfully clicked.")
     except TimeoutException:
-        text = 'Element could not be found, connection timed out.'
-        log.info(text)
+        text = 'Element could not be found, connection timed out.' # text variable probably superfluous
+        log.error(text)
     accept_pur_abo_homepage.driver = driver
     accept_pur_abo_homepage.text = text
     return  [accept_pur_abo_homepage.text, accept_pur_abo_homepage.driver]
@@ -268,9 +272,10 @@ def accept_pur_abo_article(article_url_list, class_name):
         driver.switch_to.default_content()
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]'))) 
         text = driver.page_source
+        log.info("The consent button was successfully clicked.")
     except TimeoutException:
-        text = 'Element could not be found, connection timed out.'
-        log.info(text)
+        text = 'Element could not be found, connection timed out.' # text variable probably superfluous
+        log.error(text)
     accept_pur_abo_article.driver = driver
     accept_pur_abo_article.text = text
     return  [accept_pur_abo_article.text, accept_pur_abo_article.driver]
@@ -286,8 +291,9 @@ def get_pur_abo_article_urls(homepage_url, class_name):
         get_pur_abo_article_urls.article_url_list = article_url_list
         driver = accept_pur_abo_homepage.driver
         driver.quit()
+        log.info(f'{homepage_url}: {len(article_url_list)} articles were found.\r')
     except:
-        log.info('Unexpected error occured.')
+        log.error('Unexpected error occured.')
     return get_pur_abo_article_urls.article_url_list
 
 def get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wanted):
@@ -313,7 +319,10 @@ def get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wan
             metadata =  get_article_metadata_worst_case.metadata
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
                 article_list.append(metadata)
-    log.info(f'{homepage_url}: {len(article_list)} articles with metadata have been found.\r')
+    if len(article_list) != 0:
+        log.info(f'{homepage_url}: {len(article_list)} articles with metadata have been found.\r')
+    else:
+        log.error(f'{homepage_url}: No articles with metadata were found.')
     driver.quit()
     df = pd.DataFrame.from_dict(article_list)
     get_pur_abo_article_urls_and_metadata.df = df
@@ -342,8 +351,11 @@ def get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name, met
             metadata =  get_article_metadata_worst_case.metadata
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
                 article_list.append(metadata)
-    log.info(f'{homepage_url}: {len(article_list)} articles have been found.\r')
-    driver.quit()
+    if len(article_list) != 0:
+        log.info(f'{homepage_url}: {len(article_list)} viable articles with metadata have been found.\r')
+    else:
+        log.error(f'{homepage_url}: No viable articles with metadata were found.')
+        driver.quit()
     df = pd.DataFrame.from_dict(article_list)
     get_pur_abo_filtered_article_urls_and_metadata.df = df
     return get_pur_abo_filtered_article_urls_and_metadata.df
@@ -444,7 +456,7 @@ def filter_both_bestcase(homepage_url, metadata_wanted):
               help='This is the URL you extract the article URLs from.')
 @click.option('-m', '--metadata-wanted', default="['title', 'date', 'url', 'description']",
               help='This is the metadata you want from the article, put in as a python list of strings.')
-def filter_both_worstcase():
+def filter_both_worstcase(homepage_url, metadata_wanted):
     get_filtered_article_urls_and_metadata_worst_case(homepage_url, metadata_wanted)
 
 # Explain the Pur Abo better in this help text:

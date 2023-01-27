@@ -17,7 +17,7 @@ from newsfeedback.main import consent_button_homepage, consent_button_article, c
 
 @pytest.fixture
 def caplog(caplog: LogCaptureFixture):
-    handler_id = log.add(caplog.handler, format='{message}')
+    handler_id = log.add(caplog.handler)
     yield caplog
     log.remove(handler_id)
 
@@ -100,6 +100,7 @@ class TestBestCasePipeline(object):
 class TestFilterPipeline(object):
     ### Not sure if the first two make sense, as the best case pipeline already 
     ### retrieves viable article URLs. 
+
     def test_filter_article_urls_bestcase_goodurl(self):
         """ Asserts whether article URLs extracted with
         trafilatura remain following the filtering process.
@@ -492,3 +493,88 @@ class TestClickFilter(object):
                    "removed no articles.".format(caplog.text))
         #assert len(actual) != not_expected, message
         assert "INFO" in caplog.text, message
+    
+    def test_filter_both_bestcase_goodurl(self, caplog):
+        """
+        """
+        runner = CliRunner()
+        homepage_url = "'https://www.spiegel.de/'"
+        runner.invoke(filter_both_bestcase, f"-u {homepage_url} \n")
+        message = ("filter_both_bestcase(homepage_url, metadata_wanted) "
+                   "removed no articles.".format(caplog.text))
+        #assert len(actual) != not_expected, message
+        assert "INFO" in caplog.text, message
+
+    def test_filter_both_bestcase_badurl(self, caplog):
+        """
+        """
+        runner = CliRunner()
+        homepage_url = "'https://www.badische-zeitung.de/'"
+        runner.invoke(filter_both_bestcase, f"-u {homepage_url} \n")
+        message = ("filter_both_bestcase(homepage_url, metadata_wanted) "
+                   "removed no articles.".format(caplog.text))
+        #assert len(actual) != not_expected, message
+        assert "INFO" in caplog.text, message
+
+    def test_filter_both_worstcase_goodurl(self, caplog):
+        """
+        """
+        runner = CliRunner()
+        homepage_url = "'https://www.badische-zeitung.de/'"
+        runner.invoke(filter_both_worstcase, f"-u {homepage_url} \n")
+        message = ("filter_both_worstcase(homepage_url, metadata_wanted) "
+                   "removed no articles.".format(caplog.text))
+        #assert len(actual) != not_expected, message
+        assert "INFO" in caplog.text, message
+
+    class TestClickSiteSpecific(object):
+        def test_consent_button_homepage(self, caplog):
+            """
+            """
+            runner = CliRunner()
+            homepage_url = "'https://www.zeit.de/'"
+            runner.invoke(consent_button_homepage, f"-u {homepage_url} \n")
+            message = ("consent_button_homepage(homepage_url, class_name) "
+                       "was unable to click the consent button "
+                       "on the given homepage. ".format(caplog.text))
+            assert "INFO" in caplog.text, message
+        
+        def test_subscription_button_homepage(self, caplog):
+            """
+            """
+            runner = CliRunner()
+            homepage_url = "'https://www.zeit.de/'"
+            class_name = "js-forward-link-purabo"
+            runner.invoke(consent_button_homepage, f"-u {homepage_url} -c {class_name}\n")
+            message = ("consent_button_homepage(homepage_url, class_name) "
+                       "was unable to click the subscription button "
+                       "on the given homepage. ".format(caplog.text))
+            assert "ERROR" in caplog.text, message
+
+        def test_consent_articles(self, caplog):
+            """
+            """
+            runner = CliRunner()
+            homepage_url = "'https://www.zeit.de/'"
+            runner.invoke(consent_articles, f"-u {homepage_url} \n")
+            message = (" ".format(caplog.text)) 
+            assert "INFO" in caplog.text, message
+
+        def test_consent_both(self, caplog):
+            """
+            """
+            runner = CliRunner()
+            homepage_url = "'https://www.zeit.de/'"
+            runner.invoke(consent_both, f"-u {homepage_url} \n")
+            message = (" ".format(caplog.text))
+            assert "INFO" in caplog.text, message
+
+        def test_filter_consent_both(self, caplog):
+            """
+            """
+            runner = CliRunner()
+            homepage_url = "'https://www.zeit.de/'"
+            runner.invoke(filter_consent_both, f"-u {homepage_url} \n")
+            message = (" ".format(caplog.text))
+            assert "INFO" in caplog.text, message
+
