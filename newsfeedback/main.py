@@ -29,8 +29,7 @@ def get_article_urls_best_case(homepage_url):
         log.info(f'{homepage_url}: {len(article_url_list)} articles were found.\r')
     else:
         log.error(f'{homepage_url}: No articles were found.')
-    get_article_urls_best_case.article_url_list = article_url_list
-    return get_article_urls_best_case.article_url_list
+    return article_url_list
 
 def get_article_metadata_best_case(article_url, metadata_wanted):
     """ Extracts predefined (metadata_wanted) metadata from the given article url. Returns an empty list if
@@ -54,8 +53,7 @@ def get_article_urls_and_metadata_best_case(homepage_url, metadata_wanted):
     """ Combines get_article_urls_best_case() and get_article_metadata_best_case() for a seamless 
     sequence of actions. The results are stored in a dataframe.
     """
-    get_article_urls_best_case(homepage_url)
-    article_url_list = get_article_urls_best_case.article_url_list
+    article_url_list = get_article_urls_best_case(homepage_url)
     article_list = []
     for article_url in article_url_list:
         get_article_metadata_best_case(article_url, metadata_wanted)
