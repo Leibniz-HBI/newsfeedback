@@ -39,50 +39,46 @@ class TestTrafilaturaPipeline(object):
         assert len(actual) == expected, message
     
     def test_get_article_metadata_title_date_url_description_trafilatura_pipeline_goodurl(self):
-        """ Asserts whether the desired metadata (in this case: Title, Date, URL, Description) 
-        can be extracted from an article
-        """
         article_url = "https://www.spiegel.de/netzwelt/apps/elon-musk-hetzt-auf-twitter-gegen-anthony-fauci-und-die-queere-community-und-wird-ausgebuht-a-edd3c470-12cb-485d-a6f9-266dc94279de"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_article_metadata_trafilatura_pipeline(article_url, metadata_wanted)
+        actual = get_article_metadata_trafilatura_pipeline(article_url)
         not_expected = 0
-        message = ("get_article_metadata_trafilatura_pipeline(article_url, metadata_wanted) "
+        message = ("get_article_metadata_trafilatura_pipeline(article_url) "
                    "returned {0} metadata".format(len(actual)))
         assert len(actual) != not_expected, message
 
     def test_get_article_metadata_complete_trafilatura_pipeline(self):
         article_url = "https://www.spiegel.de/netzwelt/apps/elon-musk-hetzt-auf-twitter-gegen-anthony-fauci-und-die-queere-community-und-wird-ausgebuht-a-edd3c470-12cb-485d-a6f9-266dc94279de"
-        metadata_wanted = "['title', 'author', 'url', 'hostname', 'description', 'sitename', 'date', 'categories', 'tags', 'fingerprint', 'id', 'license', 'body', 'comments', 'commentsbody', 'raw_text', 'text', 'language']"
-        actual = get_article_metadata_trafilatura_pipeline(article_url, metadata_wanted)
+        actual = get_article_metadata_trafilatura_pipeline(article_url)
         not_expected = 0
-        message = ("get_article_metadata_trafilatura_pipeline(article_url, metadata_wanted) "
+        message = ("get_article_metadata_trafilatura_pipeline(article_url) "
                    "returned {0} articles with metadata.".format(len(actual)))
         assert len(actual) != not_expected, message
        
     def test_get_article_metadata_title_date_url_description_trafilatura_pipeline_badurl(self):        
         article_url = "https://hans-bredow-institut.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_article_metadata_trafilatura_pipeline(article_url, metadata_wanted)
+        actual = get_article_metadata_trafilatura_pipeline(article_url)
         expected = 0
-        message = ("get_article_metadata_trafilatura_pipeline(article_url, metadata_wanted) "
+        message = ("get_article_metadata_trafilatura_pipeline(article_url) "
                    "returned {0} metadata, despite expecting {1}.".format(len(actual), expected))
         assert len(actual) == expected, message
         
     def test_get_article_url_and_metadata_title_date_url_description_trafilatura_pipeline_goodurl(self):
         homepage_url = "https://www.spiegel.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_article_urls_and_metadata_trafilatura_pipeline(homepage_url, metadata_wanted)
+        actual = get_article_urls_and_metadata_trafilatura_pipeline(homepage_url)
         not_expected = 0
-        message = ("get_article_metadata_trafilatura_pipeline(article_url, metadata_wanted) "
+        message = ("get_article_metadata_trafilatura_pipeline(article_url) "
                    "returned {0} articles with metadata.".format(len(actual)))
         assert len(actual) != not_expected, message        
         
     def test_get_article_url_and_metadata_title_date_url_description_trafilatura_pipeline_badurl(self):
         homepage_url = "https://smo-wiki.leibniz-hbi.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_article_urls_and_metadata_trafilatura_pipeline(homepage_url, metadata_wanted)
+        actual = get_article_urls_and_metadata_trafilatura_pipeline(homepage_url)
         expected = 0
-        message = ("get_article_metadata_trafilatura_pipeline(article_url, metadata_wanted) "
+        message = ("get_article_metadata_trafilatura_pipeline(article_url) "
                    "returned {0} articles with metadata, despite expecting {1}.".format(actual.shape[0],expected))
         assert actual.shape[0] == expected, message     
 
@@ -120,27 +116,27 @@ class TestFilterPipeline(object):
     def test_filter_get_article_url_and_metadata_title_date_url_description_trafilatura_pipeline_goodurl(self):
         homepage_url = "https://www.spiegel.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url, metadata_wanted)
+        actual = get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url)
         not_expected = 0
-        message = ("get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url, metadata_wanted) "
+        message = ("get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url) "
                    "returned {0} filtered articles with metadata.".format(actual.shape[0]))
         assert actual.shape[0] != not_expected, message      
         
     def test_filter_get_article_url_and_metadata_title_date_url_description_trafilatura_pipeline_badurl(self):
         homepage_url = "https://www.badische-zeitung.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url, metadata_wanted)
+        actual = get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url)
         expected = 0
-        message = ("get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url, metadata_wanted) "
+        message = ("get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url) "
                    "returned {0} filtered articles with metadata, despite expecting {1}.".format(actual.shape[0],expected))
         assert actual.shape[0] == expected, message     
 
     def test_filter_get_article_url_and_metadata_title_date_url_description_bs_pipeline_goodurl(self):
         homepage_url = "https://www.badische-zeitung.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_filtered_article_urls_and_metadata_bs_pipeline(homepage_url, metadata_wanted)
+        actual = get_filtered_article_urls_and_metadata_bs_pipeline(homepage_url)
         not_expected = 0
-        message = ("get_filtered_article_urls_and_metadata_bs_pipeline(homepage_url, metadata_wanted) "
+        message = ("get_filtered_article_urls_and_metadata_bs_pipeline(homepage_url) "
                    "returned {0} filtered articles with metadata.".format(actual.shape[0]))
         assert actual.shape[0] != not_expected, message          
 
@@ -162,27 +158,27 @@ class TestBeautifulSoupPipeline(object):
         """
         article_url = "https://www.badische-zeitung.de/unwetterwarnung-aufgehoben-aber-schnee-und-eis-sollen-ueber-nacht-zurueckkehren"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_article_metadata_bs_pipeline(article_url, metadata_wanted)
+        actual = get_article_metadata_bs_pipeline(article_url)
         not_expected = 0
-        message = ("get_article_metadata_bs_pipeline(article_url, metadata_wanted) "
+        message = ("get_article_metadata_bs_pipeline(article_url) "
                    "returned {0} metadata.".format(len(actual)))
         assert len(actual) != not_expected, message
 
     def test_get_article_metadata_complete_bs_pipeline(self):
         article_url = "https://www.badische-zeitung.de/unwetterwarnung-aufgehoben-aber-schnee-und-eis-sollen-ueber-nacht-zurueckkehren"
         metadata_wanted = "['title', 'author', 'url', 'hostname', 'description', 'sitename', 'date', 'categories', 'tags', 'fingerprint', 'id', 'license', 'body', 'comments', 'commentsbody', 'raw_text', 'text', 'language']"
-        actual = get_article_metadata_bs_pipeline(article_url, metadata_wanted)
+        actual = get_article_metadata_bs_pipeline(article_url)
         not_expected = 0
-        message = ("get_article_metadata_bs_pipeline(article_url, metadata_wanted) "
+        message = ("get_article_metadata_bs_pipeline(article_url) "
                    "returned {0} metadata.".format(len(actual)))
         assert len(actual) != not_expected, message
 
     def test_get_article_url_and_metadata_title_date_url_description_bs_pipeline_goodurl(self):
         homepage_url = "https://www.badische-zeitung.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_article_urls_and_metadata_bs_pipeline(homepage_url, metadata_wanted)
+        actual = get_article_urls_and_metadata_bs_pipeline(homepage_url)
         not_expected = 0
-        message = ("get_article_urls_and_metadata_bs_pipeline(article_url, metadata_wanted) "
+        message = ("get_article_urls_and_metadata_bs_pipeline(article_url) "
                    "returned {0} articles with metadata.".format(actual.shape[0]))
         assert actual.shape[0] != not_expected, message          
 
@@ -234,7 +230,7 @@ class TestWebsiteSpecificFunctions(object):
         homepage_url = "https://www.zeit.de/"
         class_name = "sp_choice_type_11"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+        actual = get_pur_abo_article_urls_and_metadata(homepage_url, class_name)
         not_expected = 0
         message = ("get_pur_abo_article_urls_and_metadata(homepage_url, class_name) "
                    "returned {0} articles with metadata.".format(actual.shape[0]))
@@ -244,7 +240,7 @@ class TestWebsiteSpecificFunctions(object):
         homepage_url = "https://www.zeit.de/"
         class_name = "sp_choice_type_11"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+        actual = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name)
         not_expected = 0
         message = ("get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name) "
                    "returned {0} filtered articles with metadata.".format(actual.shape[0]))
@@ -255,7 +251,7 @@ class TestExportCSV(object):
         homepage_url = "https://www.spiegel.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
         output_folder = "newsfeedback/output"
-        df = get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url, metadata_wanted)
+        df = get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url)
         df_path = export_dataframe(df, homepage_url, output_folder)
         df_from_file = pd.read_csv(df_path)
         message = ("The number of entries in the original dataframe ({0}) "
@@ -267,7 +263,7 @@ class TestExportCSV(object):
         homepage_url = "https://www.badische-zeitung.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
         output_folder = "newsfeedback/output"
-        df = get_filtered_article_urls_and_metadata_bs_pipeline(homepage_url, metadata_wanted)
+        df = get_filtered_article_urls_and_metadata_bs_pipeline(homepage_url)
         df_path = export_dataframe(df, homepage_url, output_folder)
         df_from_file = pd.read_csv(df_path)
         message = ("The number of entries in the original dataframe ({0}) "
@@ -280,7 +276,7 @@ class TestExportCSV(object):
         metadata_wanted = ['title', 'date', 'url', 'description']
         class_name = "sp_choice_type_11"
         output_folder = "newsfeedback/output"
-        df = get_pur_abo_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+        df = get_pur_abo_article_urls_and_metadata(homepage_url, class_name)
         df_path = export_dataframe(df, homepage_url, output_folder)
         df_from_file = pd.read_csv(df_path)
         message = ("The number of entries in the original dataframe ({0}) "
@@ -293,7 +289,7 @@ class TestExportCSV(object):
         metadata_wanted = ['title', 'date', 'url', 'description']
         class_name = "sp_choice_type_11"
         output_folder = "newsfeedback/output"
-        df = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name, metadata_wanted)
+        df = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name)
         df_path = export_dataframe(df, homepage_url, output_folder)
         df_from_file = pd.read_csv(df_path)
         message = ("The number of entries in the original dataframe ({0}) "
@@ -322,7 +318,7 @@ class TestClickTrafilaturaPipeline(object):
         runner = CliRunner()
         article_url = "'https://www.spiegel.de/netzwelt/apps/elon-musk-hetzt-auf-twitter-gegen-anthony-fauci-und-die-queere-community-und-wird-ausgebuht-a-edd3c470-12cb-485d-a6f9-266dc94279de'"
         runner.invoke(get_metadata_trafilatura_pipeline, f"-a {article_url} \n")
-        message = ("get_metadata_trafilatura_pipeline(article_url, metadata_wanted) "
+        message = ("get_metadata_trafilatura_pipeline(article_url) "
                    "returned no metadata.".format(caplog.text))
         assert "INFO" in caplog.text, message
 
@@ -331,7 +327,7 @@ class TestClickTrafilaturaPipeline(object):
         runner = CliRunner()
         article_url = "'https://hans-bredow-institut.de/'"
         runner.invoke(get_metadata_trafilatura_pipeline, f"-a {article_url} \n")
-        message = ("get_metadata_trafilatura_pipeline(article_url, metadata_wanted) "
+        message = ("get_metadata_trafilatura_pipeline(article_url) "
                    "returned metadata, despite none being expected.".format(caplog.text))
         assert "ERROR" in caplog.text, message    
     
@@ -339,7 +335,7 @@ class TestClickTrafilaturaPipeline(object):
         runner = CliRunner()
         homepage_url = "'https://www.spiegel.de/'"
         runner.invoke(get_both_trafilatura_pipeline, f"-u {homepage_url} \n")
-        message = ("get_both_trafilatura_pipeline(homepage_url, metadata_wanted) "
+        message = ("get_both_trafilatura_pipeline(homepage_url) "
                    "returned no articles with metadata.".format(caplog.text))
         assert "INFO" in caplog.text, message
         
@@ -347,11 +343,11 @@ class TestClickTrafilaturaPipeline(object):
         runner = CliRunner()
         homepage_url = "'https://smo-wiki.leibniz-hbi.de/'"
         runner.invoke(get_both_trafilatura_pipeline, f"-u {homepage_url} \n")
-        message = ("get_both_trafilatura_pipeline(homepage_url, metadata_wanted) "
+        message = ("get_both_trafilatura_pipeline(homepage_url) "
                    "returned articles with metadata, despite none being expected.".format(caplog.text))
         assert "ERROR" in caplog.text, message
 
-class TestClickbs_pipeline(object):
+class TestClickBeautifulSoupPipeline(object):
     def test_click_get_articles_bs_pipeline_goodurl(self, caplog):
         runner = CliRunner()
         homepage_url = "'https://www.badische-zeitung.de/'"
@@ -364,7 +360,7 @@ class TestClickbs_pipeline(object):
         runner = CliRunner()
         article_url = "'https://www.badische-zeitung.de/unwetterwarnung-aufgehoben-aber-schnee-und-eis-sollen-ueber-nacht-zurueckkehren'"
         runner.invoke(get_metadata_bs_pipeline, f"-a {article_url} \n")
-        message = ("get_metadata_bs_pipeline(article_url, metadata_wanted) "
+        message = ("get_metadata_bs_pipeline(article_url) "
                    "returned no metadata.".format(caplog.text))
         assert "INFO" in caplog.text, message
 
@@ -389,7 +385,7 @@ class TestClickFilter(object):
         runner = CliRunner()
         homepage_url = "'https://www.spiegel.de/'"
         runner.invoke(filter_both_trafilatura_pipeline, f"-u {homepage_url} \n")
-        message = ("filter_both_trafilatura_pipeline(homepage_url, metadata_wanted) "
+        message = ("filter_both_trafilatura_pipeline(homepage_url) "
                    "removed no articles.".format(caplog.text))
         assert "INFO" in caplog.text, message
 
@@ -397,7 +393,7 @@ class TestClickFilter(object):
         runner = CliRunner()
         homepage_url = "'https://www.badische-zeitung.de/'"
         runner.invoke(filter_both_trafilatura_pipeline, f"-u {homepage_url} \n")
-        message = ("filter_both_trafilatura_pipeline(homepage_url, metadata_wanted) "
+        message = ("filter_both_trafilatura_pipeline(homepage_url) "
                    "returned articles, despite none being expected.".format(caplog.text))
         assert "ERROR" in caplog.text, message
 
@@ -405,7 +401,7 @@ class TestClickFilter(object):
         runner = CliRunner()
         homepage_url = "'https://www.badische-zeitung.de/'"
         runner.invoke(filter_both_bs_pipeline, f"-u {homepage_url} \n")
-        message = ("filter_both_bs_pipeline(homepage_url, metadata_wanted) "
+        message = ("filter_both_bs_pipeline(homepage_url) "
                    "removed no articles.".format(caplog.text))
         assert "INFO" in caplog.text, message
 
