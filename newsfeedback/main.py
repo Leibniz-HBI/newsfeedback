@@ -11,7 +11,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import TimeoutException
 
-log.add(sys.stderr, format = "<red>[{level}]</red> : <green>{message}</green> @ {time}", colorize=True)
+log.add(sys.stderr, format = "<red>[{level}]</red> : <green>{message}</green> @ {time}", colorize=True, level="ERROR")
 
 @click.group()
 def cli():
@@ -72,6 +72,34 @@ def get_article_metadata_trafilatura_pipeline(article_url):
 def get_metadata_trafilatura_pipeline(article_url):
     get_article_metadata_trafilatura_pipeline(article_url)
 
+def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
+
+    metadata_config = retrieve_config("metadata")
+    metadata_wanted = [k for k,v in metadata_config.items() if v == True]
+    article_list = []
+    for article_url in article_url_list:
+        downloaded = trafilatura.fetch_url(article_url)
+        metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
+        if metadata is not None:
+            dict_keys = list(metadata.keys())
+            dict_keys_to_pop = [key for key in dict_keys if key not in metadata_wanted]
+            if len(dict_keys_to_pop) != 0:
+                for key in dict_keys_to_pop: 
+                    metadata.pop(key, None)
+            else:
+                metadata = metadata
+            log.info(f'{article_url}: Metadata was found.')
+        else:
+            metadata = []
+            log.error(f'{article_url}: No metadata was found.')
+        article_list.append(metadata)
+    df = pd.DataFrame(article_list, columns = metadata_wanted)
+    if df.shape[0] != 0:
+        log.info(f'{df.shape[0]} articles with metadata were found.')
+    else:
+        log.error(f'No articles with metadata were found.')
+    return df
+
 def get_article_urls_and_metadata_trafilatura_pipeline(homepage_url):
     article_url_list = get_article_urls_trafilatura_pipeline(homepage_url)
     article_list = []
@@ -93,6 +121,10 @@ def get_article_urls_and_metadata_trafilatura_pipeline(homepage_url):
 def get_both_trafilatura_pipeline(homepage_url, output_folder):
     df = get_article_urls_and_metadata_trafilatura_pipeline(homepage_url)
     export_dataframe(df, homepage_url, output_folder)
+
+
+
+
 
 ### Worst case functions 
 def get_article_urls_bs_pipeline(homepage):
@@ -448,9 +480,23 @@ def export_dataframe(df, homepage_url, output_folder):
         timestr = time.strftime(r"%Y%m%d-%H%M")
         df_path = f"{output_folder}/{timestr}-"+f"{df_name}"+f".csv"
         df.to_csv(df_path, index=False, mode='a')
+        log.info(f'File generated at: {df_path}')
     except:
-        log.info('Unexpected error occurred.')
+        log.error('Unexpected error occurred.')
     return df_path
+
+def chained_trafilatura_pipeline(homepage_url, output_folder):
+    df_path = export_dataframe(get_article_metadata_chain_trafilatura_pipeline(get_article_urls_trafilatura_pipeline(homepage_url)), homepage_url, output_folder)
+    return df_path
+
+@cli.command(help="[TRAFILATURA PIPELINE] - Executes the complete trafilatura pipeline.")
+@click.option('-u','--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-o', '--output-folder', default='newsfeedback/output',
+              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+def trafilatura_pipeline(homepage_url, output_folder):
+    df_path = chained_trafilatura_pipeline(homepage_url, output_folder)
+
 
 if __name__ == "main":
     cli()

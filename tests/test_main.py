@@ -1,6 +1,6 @@
 """ Test suite for newsfeedback.main
 """
-import pytest, sys
+import pytest, sys, re
 import pandas as pd
 from click.testing import CliRunner
 from _pytest.logging import LogCaptureFixture
@@ -14,6 +14,8 @@ from newsfeedback.main import get_articles_trafilatura_pipeline, get_metadata_tr
 from newsfeedback.main import get_articles_bs_pipeline,  get_metadata_bs_pipeline, get_both_bs_pipeline
 from newsfeedback.main import filter_articles, filter_both_trafilatura_pipeline, filter_both_bs_pipeline
 from newsfeedback.main import consent_button_homepage, consent_articles, consent_both, filter_consent_both
+from newsfeedback.main import chained_trafilatura_pipeline, trafilatura_pipeline
+
 
 @pytest.fixture
 def caplog(caplog: LogCaptureFixture):
@@ -81,6 +83,8 @@ class TestTrafilaturaPipeline(object):
         message = ("get_article_metadata_trafilatura_pipeline(article_url) "
                    "returned {0} articles with metadata, despite expecting {1}.".format(actual.shape[0],expected))
         assert actual.shape[0] == expected, message     
+
+
 
 class TestFilterPipeline(object):
     ### Not sure if the first two make sense, as the trafilatura pipeline pipeline already 
@@ -346,6 +350,20 @@ class TestClickTrafilaturaPipeline(object):
         message = ("get_both_trafilatura_pipeline(homepage_url) "
                    "returned articles with metadata, despite none being expected.".format(caplog.text))
         assert "ERROR" in caplog.text, message
+    
+    def test_click_trafilatura_chain(self, caplog):
+        runner = CliRunner()
+        homepage_url = "'https://www.spiegel.de/'"
+        df_path = runner.invoke(trafilatura_pipeline, f"-u {homepage_url} \n")
+        df_path_cleaned = re.sub(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.\d{3} \| INFO {5}\| .*?File generated at: )", f"{df_path}", "")
+        log.info(df_path)
+        log.info(df_path_cleaned)
+        #message = ("trafilatura_pipeline(homepage_url) "
+        #           "returned no articles with metadata.".format(caplog.text))
+        #df_path = export_dataframe(df, homepage_url, output_folder)
+        df_from_file = pd.read_csv(df_path_cleaned)
+        message = ("The exported dataframe is empty.")                
+        assert df_from_file.shape[0] != 0, message
 
 class TestClickBeautifulSoupPipeline(object):
     def test_click_get_articles_bs_pipeline_goodurl(self, caplog):
