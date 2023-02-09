@@ -24,8 +24,11 @@ def retrieve_config(type_config):
             config_file = "newsfeedback/user_metadata_config.yaml"
         else:
             config_file = "newsfeedback/default_metadata_config.yaml"
-    elif type_config == "website":
-        pass
+    elif type_config == "homepage":
+        if os.path.isfile("newsfeedback/user_homepage_config.yaml"):
+            config_file = "newsfeedback/user_homepage_config.yaml"
+        else:
+            config_file = "newsfeedback/default_homepage_config.yaml"
     with open(config_file, "r") as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
         return data
@@ -534,7 +537,7 @@ def get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name):
     article_url_list = get_article_urls_bs_pipeline(text)
     driver = result_homepage[1]
     driver.quit()
-    article_url_list_clean = filter_urls(article_url_list)
+    article_url_list_clean = filter_urls(article_url_list, filter_choice='on')
     article_list = []
     result_article = accept_pur_abo_article(article_url_list_clean,class_name)
     driver = result_article[1]
@@ -631,6 +634,34 @@ def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_fold
               help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
 def purabo_pipeline(homepage_url, class_name, filter_choice, output_folder):
     chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_folder)
+
+
+def get_pipeline_from_config(homepage_url, output_folder):
+    homepage_config = retrieve_config('homepage')
+    data = homepage_config.get(homepage_url)
+    try:
+        pipeline = data.get('pipeline')
+        filter_option = data.get('filter')
+        log.info(f'{homepage_url} uses the {pipeline} pipeline and has filtering turned {filter_option}.')
+        if pipeline == 'trafilatura':
+            chained_trafilatura_pipeline(homepage_url, filter_option, output_folder)
+        elif pipeline == 'beautifulsoup':
+            chained_beautifulsoup_pipeline(homepage_url, filter_option, output_folder)
+        elif pipeline == 'purabo':
+            chained_purabo_pipeline(homepage_url, 'sp_choice_type_11', filter_option, output_folder)
+        else:
+            log.error('Please check the pipeline information given for this URL.')
+    except KeyError:
+        log.error("Uh oh. Error!")
+    
+@cli.command(help="Chooses and executes the pipeline saved in the config file.")
+@click.option('-u','--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-o', '--output-folder', default='newsfeedback/output',
+              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+
+def pipeline_picker(homepage_url, output_folder):
+    get_pipeline_from_config(homepage_url, output_folder)
 
 
 if __name__ == "main":

@@ -15,7 +15,7 @@ from newsfeedback.main import get_articles_bs_pipeline,  get_metadata_bs_pipelin
 from newsfeedback.main import filter_articles, filter_both_trafilatura_pipeline, filter_both_bs_pipeline
 from newsfeedback.main import consent_button_homepage, consent_articles, consent_both, filter_consent_both
 from newsfeedback.main import trafilatura_pipeline, beautifulsoup_pipeline, purabo_pipeline
-
+from newsfeedback.main import pipeline_picker
 
 @pytest.fixture
 def caplog(caplog: LogCaptureFixture):
@@ -92,8 +92,9 @@ class TestFilterPipeline(object):
 
     def test_filter_article_urls_trafilatura_pipeline_goodurl(self):
         homepage_url = "https://www.spiegel.de/"
+        filter_choice = 'on'
         article_url_list = get_article_urls_trafilatura_pipeline(homepage_url)
-        actual = filter_urls(article_url_list)
+        actual = filter_urls(article_url_list, filter_choice)
         not_expected = 0 
         message = ("filter_urls(article_url_list) "
                    "returned {0} filtered article URLs.".format(len(actual)))
@@ -101,8 +102,9 @@ class TestFilterPipeline(object):
 
     def test_filter_article_urls_trafilatura_pipeline_badurl(self):
         homepage_url = "https://www.badische-zeitung.de/"
+        filter_choice = 'on'
         article_url_list = get_article_urls_trafilatura_pipeline(homepage_url)
-        actual = filter_urls(article_url_list)
+        actual = filter_urls(article_url_list, filter_choice)
         expected = 0 
         message = ("filter_urls(article_url_list) "
                    "returned {0} filtered article URLs, despite expecting {1}.".format(len(actual),expected))
@@ -110,8 +112,9 @@ class TestFilterPipeline(object):
 
     def test_filter_article_urls_bs_pipeline_goodurl(self):
         homepage_url = "https://www.badische-zeitung.de/"
+        filter_choice = 'on'
         article_url_list = get_article_urls_bs_pipeline(homepage_url)
-        actual = filter_urls(article_url_list)
+        actual = filter_urls(article_url_list, filter_choice)
         not_expected = 0 
         message = ("filter_urls(article_url_list) "
                    "returned {0} filtered article URLs.".format(len(actual)))
@@ -352,6 +355,69 @@ class TestClickTrafilaturaPipeline(object):
         assert "ERROR" in caplog.text, message
 
 class TestClickChainPipelines(object):
+    def test_pipeline_picker_trafilatura(self, caplog):
+        runner = CliRunner()
+        homepage_url = "'https://www.spiegel.de/'"
+        output_path = "'tests/output'"
+        runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
+        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+        homepage = homepage.replace(".","") 
+        output_path = output_path.replace("'", "")
+        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        latest_file = max(list_of_files, key=os.path.getctime)
+        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+        message = ("The exported dataframe is empty.")                
+        assert df_from_file.shape[0] != 0, message
+        
+    def test_pipeline_picker_beautifulsoup(self, caplog):
+        runner = CliRunner()
+        homepage_url = "'https://www.badische-zeitung.de/'"
+        output_path = "'tests/output'"
+        runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
+        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+        homepage = homepage.replace(".","") 
+        output_path = output_path.replace("'", "")
+        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        latest_file = max(list_of_files, key=os.path.getctime)
+        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+        message = ("The exported dataframe is empty.")                
+        assert df_from_file.shape[0] != 0, message
+    
+    def test_pipeline_picker_purabo(self, caplog):
+        runner = CliRunner()
+        homepage_url = "'https://www.zeit.de/'"
+        output_path = "'tests/output'"
+        runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
+        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+        homepage = homepage.replace(".","") 
+        output_path = output_path.replace("'", "")
+        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        latest_file = max(list_of_files, key=os.path.getctime)
+        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+        message = ("The exported dataframe is empty.")                
+        assert df_from_file.shape[0] != 0, message
+        
+    def test_pipeline_picker_all(self):
+        list_homepage_url = ['https://www.zeit.de/','https://www.spiegel.de/','https://www.badische-zeitung.de/','https://www.bild.de/','https://www.faz.net/','https://www.focus.de/','https://www.handelsblatt.com/','https://www.n-tv.de/','https://www.rnd.de/','https://www.rtl.de/','https://www.stern.de/','https://www.sueddeutsche.de/','https://www.t-online.de/','https://www.upday.com/de/','https://www.welt.de/','https://www.merkur.de/','https://www.tz.de/','https://www.fr.de/']
+        runner = CliRunner()
+        list_empty_df = []
+        for homepage_url in list_homepage_url:
+            homepage_name = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+            homepage_name = homepage_name.replace(".","") 
+            output_path = f"tests/output/{homepage_name}"
+            if not os.path.exists(output_path):
+                os.mkdir(output_path)
+            output_path = f"'{output_path}'"
+            runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
+            output_path = output_path.replace("'", "")
+            list_of_files = glob.glob(f'{output_path}/*{homepage_name}.csv')
+            latest_file = max(list_of_files, key=os.path.getctime)
+            df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+            if df_from_file.shape[0] == 0:
+                list_empty_df.append(latest_file)
+        message = (f"At least one exported dataframe is empty: {list_empty_df}")                
+        assert len(list_empty_df) == 0, message
+
     def test_click_trafilatura_chain_goodurl(self):
         runner = CliRunner()
         homepage_url = "'https://www.spiegel.de/'"
