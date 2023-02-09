@@ -14,7 +14,7 @@ from newsfeedback.main import get_articles_trafilatura_pipeline, get_metadata_tr
 from newsfeedback.main import get_articles_bs_pipeline,  get_metadata_bs_pipeline, get_both_bs_pipeline
 from newsfeedback.main import filter_articles, filter_both_trafilatura_pipeline, filter_both_bs_pipeline
 from newsfeedback.main import consent_button_homepage, consent_articles, consent_both, filter_consent_both
-from newsfeedback.main import trafilatura_pipeline
+from newsfeedback.main import trafilatura_pipeline, beautifulsoup_pipeline, purabo_pipeline
 
 
 @pytest.fixture
@@ -254,7 +254,7 @@ class TestExportCSV(object):
     def test_export_trafilatura_pipeline_goodurl(self):
         homepage_url = "https://www.spiegel.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        output_folder = "newsfeedback/output"
+        output_folder = "tests/output"
         df = get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url)
         df_path = export_dataframe(df, homepage_url, output_folder)
         df_from_file = pd.read_csv(df_path)
@@ -266,7 +266,7 @@ class TestExportCSV(object):
     def test_export_bs_pipeline_goodurl(self):
         homepage_url = "https://www.badische-zeitung.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
-        output_folder = "newsfeedback/output"
+        output_folder = "tests/output"
         df = get_filtered_article_urls_and_metadata_bs_pipeline(homepage_url)
         df_path = export_dataframe(df, homepage_url, output_folder)
         df_from_file = pd.read_csv(df_path)
@@ -279,7 +279,7 @@ class TestExportCSV(object):
         homepage_url = "https://www.zeit.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
         class_name = "sp_choice_type_11"
-        output_folder = "newsfeedback/output"
+        output_folder = "tests/output"
         df = get_pur_abo_article_urls_and_metadata(homepage_url, class_name)
         df_path = export_dataframe(df, homepage_url, output_folder)
         df_from_file = pd.read_csv(df_path)
@@ -292,7 +292,7 @@ class TestExportCSV(object):
         homepage_url = "https://www.zeit.de/"
         metadata_wanted = ['title', 'date', 'url', 'description']
         class_name = "sp_choice_type_11"
-        output_folder = "newsfeedback/output"
+        output_folder = "tests/output"
         df = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name)
         df_path = export_dataframe(df, homepage_url, output_folder)
         df_from_file = pd.read_csv(df_path)
@@ -356,7 +356,8 @@ class TestClickChainPipelines(object):
         runner = CliRunner()
         homepage_url = "'https://www.spiegel.de/'"
         output_path = "'tests/output'"
-        runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -o {output_path} \n")
+        filter_choice = "'off'"
+        runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
@@ -370,7 +371,8 @@ class TestClickChainPipelines(object):
         runner = CliRunner()
         homepage_url = "'https://smo-wiki.leibniz-hbi.de/'"
         output_path = "'tests/output'"
-        runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -o {output_path} \n")
+        filter_choice = "'off'"
+        runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
@@ -380,23 +382,95 @@ class TestClickChainPipelines(object):
         message = ("The exported dataframe is not empty.")                
         assert df_from_file.shape[0] == 0, message
 
-
-
-
-    '''
     def test_click_bs_chain(self):
         runner = CliRunner()
-        homepage_url = "'https://www.spiegel.de/'"
-        runner.invoke(bs_pipeline, f"-u {homepage_url} \n")
+        homepage_url = "'https://www.badische-zeitung.de/'"
+        output_path = "'tests/output'"
+        filter_choice = "'off'"
+        runner.invoke(beautifulsoup_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
-        list_of_files = glob.glob(f'newsfeedback/output/*{homepage}.csv') # * means all if need specific format then *.csv
+        output_path = output_path.replace("'", "")
+        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
         latest_file = max(list_of_files, key=os.path.getctime)
-        latest_file = latest_file.replace(r".*?/.*?\\\\","")
-        df_from_file = pd.read_csv(latest_file)
+        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
-    '''
+
+    def test_click_filter_trafilatura_chain_goodurl(self):
+        runner = CliRunner()
+        homepage_url = "'https://www.spiegel.de/'"
+        output_path = "'tests/output'"
+        filter_choice = "'on'"
+        runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
+        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+        homepage = homepage.replace(".","") 
+        output_path = output_path.replace("'", "")
+        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        latest_file = max(list_of_files, key=os.path.getctime)
+        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+        message = ("The exported dataframe is empty.")                
+        assert df_from_file.shape[0] != 0, message
+
+    def test_click_filter_trafilatura_chain_badurl(self):
+        runner = CliRunner()
+        homepage_url = "'https://smo-wiki.leibniz-hbi.de/'"
+        output_path = "'tests/output'"
+        filter_choice = "'on'"
+        runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
+        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+        homepage = homepage.replace(".","") 
+        output_path = output_path.replace("'", "")
+        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        latest_file = max(list_of_files, key=os.path.getctime)
+        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+        message = ("The exported dataframe is not empty.")                
+        assert df_from_file.shape[0] == 0, message
+
+    def test_click_filter_bs_chain(self):
+        runner = CliRunner()
+        homepage_url = "'https://www.badische-zeitung.de/'"
+        output_path = "'tests/output'"
+        filter_choice = "'on'"
+        runner.invoke(beautifulsoup_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
+        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+        homepage = homepage.replace(".","") 
+        output_path = output_path.replace("'", "")
+        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        latest_file = max(list_of_files, key=os.path.getctime)
+        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+        message = ("The exported dataframe is empty.")                
+        assert df_from_file.shape[0] != 0, message
+
+    def test_click_purabo_chain(self):
+        runner = CliRunner()
+        homepage_url = "'https://www.zeit.de/'"
+        output_path = "'tests/output'"
+        filter_choice = "'off'"
+        runner.invoke(purabo_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
+        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+        homepage = homepage.replace(".","") 
+        output_path = output_path.replace("'", "")
+        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        latest_file = max(list_of_files, key=os.path.getctime)
+        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+        message = ("The exported dataframe is empty.")                
+        assert df_from_file.shape[0] != 0, message
+
+    def test_click_filter_purabo_chain(self):
+        runner = CliRunner()
+        homepage_url = "'https://www.zeit.de/'"
+        output_path = "'tests/output'"
+        filter_choice = "'on'"
+        runner.invoke(purabo_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
+        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+        homepage = homepage.replace(".","") 
+        output_path = output_path.replace("'", "")
+        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        latest_file = max(list_of_files, key=os.path.getctime)
+        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+        message = ("The exported dataframe is empty.")                
+        assert df_from_file.shape[0] != 0, message
 
 class TestClickBeautifulSoupPipeline(object):
     def test_click_get_articles_bs_pipeline_goodurl(self, caplog):

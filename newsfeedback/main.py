@@ -73,7 +73,6 @@ def get_metadata_trafilatura_pipeline(article_url):
     get_article_metadata_trafilatura_pipeline(article_url)
 
 def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
-
     metadata_config = retrieve_config("metadata")
     metadata_wanted = [k for k,v in metadata_config.items() if v == True]
     article_list = []
@@ -206,6 +205,41 @@ def get_article_metadata_bs_pipeline(article):
 def get_metadata_bs_pipeline(article_url):
     get_article_metadata_bs_pipeline(article_url)
 
+def get_article_metadata_chain_bs_pipeline(article_url_list):
+    metadata_config = retrieve_config("metadata")
+    metadata_wanted = [k for k,v in metadata_config.items() if v == True]
+    article_list = []
+    for article in article_url_list:
+        if len(article) < 300:
+            downloaded = trafilatura.fetch_url(article)
+        else:
+            downloaded = article
+        if downloaded != None:
+            metadata_config = retrieve_config("metadata")
+            metadata_wanted = [k for k,v in metadata_config.items() if v == True]
+            metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
+            if metadata != None:
+                dict_keys = list(metadata.keys())
+                dict_keys_to_pop = [key for key in dict_keys if key not in metadata_wanted]
+                if len(dict_keys_to_pop) != 0:
+                    for key in dict_keys_to_pop: 
+                        metadata.pop(key, None)
+                else:
+                    metadata = metadata
+                log.info(f'Metadata was found.')  
+            else:
+                metadata = {}
+                log.error(f'No metadata was found.')
+        else:  
+            metadata = {}
+            log.error(f'No metadata was found.')
+        article_list.append(metadata)
+    df = pd.DataFrame(article_list, columns = metadata_wanted)
+    if df.shape[0] != 0:
+        log.info(f'{df.shape[0]} articles with metadata were found.')
+    else:
+        log.error(f'No articles with metadata were found.')
+    return df
 
 def get_article_urls_and_metadata_bs_pipeline(homepage): # might be a bit slow
     article_url_list = get_article_urls_bs_pipeline(homepage)
@@ -234,25 +268,30 @@ def get_both_bs_pipeline(homepage_url, output_folder):
     df = get_article_urls_and_metadata_bs_pipeline(homepage_url)
     export_dataframe(df, homepage_url, output_folder)
 
+
 ### Filter-related functions
 
-def filter_urls(article_url_list):
-    article_url_list_clean = []
-    year = time.strftime(r"%Y")
-    for article in article_url_list:
-        viable_article = re.search(fr"((/(\w+-)+\w+-\w+(\.html)?)|/-/\w+|{year})", article) # adjust regex so that /index end is kicked
-        if viable_article:
-            article_url_list_clean.append(article)
-    removed = (len(article_url_list)-len(article_url_list_clean))
-    if removed != 0:
-        log.info(f'Removed {removed} URLs.')
+def filter_urls(article_url_list, filter_choice):
+    if filter_choice == 'on':
+        returned_article_url_list = []
+        year = time.strftime(r"%Y")
+        for article in article_url_list:
+            viable_article = re.search(fr"((/(\w+-)+\w+-\w+(\.html)?)|/-/\w+|{year})", article) # adjust regex so that /index end is kicked
+            if viable_article:
+                returned_article_url_list.append(article)
+        removed = (len(article_url_list)-len(returned_article_url_list))
+        if removed != 0:
+            log.info(f'Removed {removed} URLs.')
+        else:
+            log.error(f'Removed no URLs.')
     else:
-        log.error(f'Removed no URLs.')
-    return article_url_list_clean
+        returned_article_url_list = article_url_list
+        log.info('Removed no URLs, as intended.')
+    return returned_article_url_list
 
 def get_filtered_article_urls(homepage_url):
     article_url_list = get_article_urls_bs_pipeline(homepage_url)
-    article_url_list_clean = filter_urls(article_url_list)
+    article_url_list_clean = filter_urls(article_url_list, filter_choice='on')
     if len(article_url_list_clean) != 0:
         log.info(f'{homepage_url}: {len(article_url_list_clean)} viable URLs were found.')
     else:
@@ -265,10 +304,9 @@ def get_filtered_article_urls(homepage_url):
 def filter_articles(homepage_url):
     get_filtered_article_urls(homepage_url)
 
-
 def get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url):
     article_url_list = get_article_urls_trafilatura_pipeline(homepage_url)
-    article_url_list_clean = filter_urls(article_url_list)
+    article_url_list_clean = filter_urls(article_url_list, filter_choice='on')
     article_list = []
     if len(article_url_list_clean) != 0:
         for article_url in article_url_list_clean:
@@ -293,7 +331,7 @@ def filter_both_trafilatura_pipeline(homepage_url, output_folder):
 
 def get_filtered_article_urls_and_metadata_bs_pipeline(homepage_url):
     article_url_list = get_article_urls_bs_pipeline(homepage_url)
-    article_url_list_clean = filter_urls(article_url_list)
+    article_url_list_clean = filter_urls(article_url_list, filter_choice='on')
     article_list = []
     for article_url in article_url_list_clean:
         if article_url != None:
@@ -394,6 +432,62 @@ def get_pur_abo_article_urls(homepage_url, class_name):
 def consent_articles(homepage_url, class_name):
     get_pur_abo_article_urls(homepage_url, class_name)
 
+def get_pur_abo_article_urls_chain(text, driver):
+    try:
+        article_url_list = []
+        downloaded = text
+        homepage_url = "https://www.zeit.de/" # un-hardcode this
+        soup = BeautifulSoup(downloaded, 'html.parser')
+
+        for a in soup.find_all('a'):
+            href = a.get('href')
+            http_check = re.search(r'(http)', f'{href}')
+            if href != None:
+                if http_check == None:
+                    http_url = f"{homepage_url}" + f"{href}"
+                    double_slash_check = re.search(r"(?<!https:)(//)", http_url)
+                    if double_slash_check:
+                        http_url = re.sub(r"(?<!https:)(//)", r"/", http_url)
+                    double_de_check = re.search(r"/de/de/", http_url)
+                    if double_de_check:
+                        http_url = re.sub(r"/de/de/", r"/de/", http_url)
+                    article_url_list.append(http_url)
+                else:
+                    homepage_de = re.search(r'(https://www\..+?\.\w{2,3}/de/)', homepage_url)
+                    if homepage_de:
+                        homepage_split = homepage_de.group(0)
+                    else:
+                        homepage_split = re.search(r'(https://www\..+?\.\w{2,3})', homepage_url).group(0)
+                    homepage_check = re.search(fr'{homepage_split}/.+', href)
+                    if homepage_check:
+                        article_url_list.append(href)
+        article_url_list = list(dict.fromkeys(article_url_list)) # refactor these!
+        article_url_list = list(filter(lambda item: item is not None, article_url_list))
+        if len(article_url_list) != 0:
+            log.info(f'{homepage_url}: {len(article_url_list)} links have been found.\r')
+        else:
+            log.error(f'{homepage_url}: No articles have been found. \r')
+        driver.quit()
+    except:
+        log.error('Unexpected error occured.')
+    return article_url_list
+
+def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
+    article_list = []
+    for article_url in article_url_list:
+        if article_url != None:
+            driver.get(article_url)
+            article_page_source = driver.page_source
+            metadata = get_article_metadata_bs_pipeline(article_page_source)
+            if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
+                article_list.append(metadata)
+    if len(article_list) != 0:
+        log.info(f'{homepage_url}: {len(article_list)} articles with metadata have been found.\r')
+    else:
+        log.error(f'{homepage_url}: No articles with metadata were found.')
+    driver.quit()
+    df = pd.DataFrame.from_dict(article_list)
+    return df
 
 def get_pur_abo_article_urls_and_metadata(homepage_url, class_name):
     result_homepage = accept_pur_abo_homepage(homepage_url, class_name)
@@ -485,17 +579,58 @@ def export_dataframe(df, homepage_url, output_folder):
         log.error('Unexpected error occurred.')
     return df_path
 
-def chained_trafilatura_pipeline(homepage_url, output_folder):
-    df_path = export_dataframe(get_article_metadata_chain_trafilatura_pipeline(get_article_urls_trafilatura_pipeline(homepage_url)), homepage_url, output_folder)
+### CHAINED PIPELINES
+
+def chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder):
+    df_path = export_dataframe(get_article_metadata_chain_trafilatura_pipeline(filter_urls(get_article_urls_trafilatura_pipeline(homepage_url), filter_choice)), homepage_url, output_folder)
     return df_path
 
 @cli.command(help="[TRAFILATURA PIPELINE] - Executes the complete trafilatura pipeline.")
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from.')
+@click.option('-f', '--filter-choice',
+              help="Whether you want to filter results or not. Either 'on' or 'off'.")
 @click.option('-o', '--output-folder', default='newsfeedback/output',
               help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
-def trafilatura_pipeline(homepage_url, output_folder):
-    df_path = chained_trafilatura_pipeline(homepage_url, output_folder)
+def trafilatura_pipeline(homepage_url, filter_choice, output_folder):
+    chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder)
+
+def chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
+    df_path = export_dataframe(get_article_metadata_chain_bs_pipeline(filter_urls(get_article_urls_bs_pipeline(homepage_url), filter_choice)), homepage_url, output_folder)
+    return df_path
+
+@cli.command(help="[BEAUTIFULSOUP PIPELINE] - Executes the complete beautifulsoup pipeline.")
+@click.option('-u','--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-f', '--filter-choice',
+              help="Whether you want to filter results or not. Either 'on' or 'off'.")
+@click.option('-o', '--output-folder', default='newsfeedback/output',
+              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+def beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
+    chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)
+
+def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_folder):
+    (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
+    article_url_list = get_pur_abo_article_urls_chain(text, driver)
+    returned_article_url_list = filter_urls(article_url_list, filter_choice)
+    driver.quit()
+    (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
+    df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
+    export_dataframe(df, homepage_url, output_folder)
+    #df_path = export_dataframe(get_article_metadata_chain_bs_pipeline(filter_urls(consent_button_article_chain(get_article_urls_bs_pipeline(consent_button_homepage_chain(homepage_url))), filter_choice)), homepage_url, output_folder)
+
+@cli.command(help="[PURABO PIPELINE] - Executes the complete pur abo pipeline.")
+@click.option('-u','--homepage-url',
+              help='This is the URL you extract the article URLs from.')
+@click.option('-c', '--class-name', default='sp_choice_type_11',
+              help='This is the class name of the consent button. If no name is given, '
+              'newsfeedback uses the class name used by ZEIT Online for their consent button.')
+@click.option('-f', '--filter-choice',
+              help="Whether you want to filter results or not. Either 'on' or 'off'.")
+@click.option('-o', '--output-folder', default='newsfeedback/output',
+              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+def purabo_pipeline(homepage_url, class_name, filter_choice, output_folder):
+    chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_folder)
 
 
 if __name__ == "main":
