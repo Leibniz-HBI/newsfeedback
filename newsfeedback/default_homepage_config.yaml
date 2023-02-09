@@ -1,0 +1,72 @@
+'https://www.zeit.de/':
+  pipeline: 'purabo'
+  filter: 'on'
+
+'https://www.spiegel.de/':
+  pipeline: 'trafilatura'
+  filter: 'off'
+
+'https://www.badische-zeitung.de/':
+  pipeline: 'beautifulsoup'
+  filter: 'on'
+
+'https://www.bild.de/':
+  pipeline: 'beautifulsoup'
+  filter: 'on'
+
+'https://www.faz.net/':
+  pipeline: 'trafilatura'
+  filter: 'off'
+
+'https://www.focus.de/':
+  pipeline: 'beautifulsoup'
+  filter: 'on'
+
+'https://www.handelsblatt.com/':
+  pipeline: 'trafilatura'
+  filter: 'off'
+
+'https://www.n-tv.de/':
+  pipeline: 'trafilatura'
+  filter: 'off'
+
+'https://www.rnd.de/':
+  pipeline: 'beautifulsoup'
+  filter: 'on'
+
+'https://www.rtl.de/':
+  pipeline: 'beautifulsoup'
+  filter: 'on'
+
+'https://www.stern.de/':
+  pipeline: 'beautifulsoup'
+  filter: 'on'
+
+'https://www.sueddeutsche.de/':
+  pipeline: 'trafilatura'
+  filter: 'off'
+
+'https://www.t-online.de/':
+  pipeline: 'trafilatura'
+  filter: 'off'
+
+'https://www.upday.com/de/':
+  pipeline: 'beautifulsoup'
+  filter: 'on'
+
+'https://www.welt.de/':
+  pipeline: 'beautifulsoup'
+  filter: 'on'
+
+'https://www.merkur.de/':
+  pipeline: 'trafilatura'
+  filter: 'off'
+
+'https://www.tz.de/':
+  pipeline: 'trafilatura'
+  filter: 'off'
+
+'https://www.fr.de/':
+  pipeline: 'beautifulsoup'
+  filter: 'on'
+  
