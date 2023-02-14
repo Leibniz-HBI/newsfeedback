@@ -5,17 +5,12 @@ import pandas as pd
 from click.testing import CliRunner
 from _pytest.logging import LogCaptureFixture
 from loguru import logger as log
-from newsfeedback.main import get_article_urls_trafilatura_pipeline, get_article_metadata_trafilatura_pipeline, get_article_urls_and_metadata_trafilatura_pipeline
-from newsfeedback.main import get_article_urls_bs_pipeline, get_article_metadata_bs_pipeline, get_article_urls_and_metadata_bs_pipeline
-from newsfeedback.main import filter_urls, get_filtered_article_urls_and_metadata_trafilatura_pipeline, get_filtered_article_urls_and_metadata_bs_pipeline
-from newsfeedback.main import export_dataframe
-from newsfeedback.main import accept_pur_abo_homepage, accept_pur_abo_article, get_pur_abo_article_urls, get_pur_abo_article_urls_and_metadata, get_pur_abo_filtered_article_urls_and_metadata
-from newsfeedback.main import get_articles_trafilatura_pipeline, get_metadata_trafilatura_pipeline, get_both_trafilatura_pipeline
-from newsfeedback.main import get_articles_bs_pipeline,  get_metadata_bs_pipeline, get_both_bs_pipeline
-from newsfeedback.main import filter_articles, filter_both_trafilatura_pipeline, filter_both_bs_pipeline
-from newsfeedback.main import consent_button_homepage, consent_articles, consent_both, filter_consent_both
-from newsfeedback.main import trafilatura_pipeline, beautifulsoup_pipeline, purabo_pipeline
-from newsfeedback.main import pipeline_picker
+from newsfeedback.main import get_article_urls_trafilatura_pipeline, get_articles_trafilatura_pipeline, get_article_metadata_chain_trafilatura_pipeline
+from newsfeedback.main import get_article_urls_bs_pipeline, get_articles_bs_pipeline, get_article_metadata_chain_bs_pipeline
+from newsfeedback.main import accept_pur_abo_homepage, consent_button_homepage, accept_pur_abo_article, consent_button_article, get_pur_abo_article_metadata_chain
+from newsfeedback.main import filter_urls, export_dataframe
+from newsfeedback.main import chained_trafilatura_pipeline, trafilatura_pipeline, chained_beautifulsoup_pipeline, beautifulsoup_pipeline, chained_purabo_pipeline, purabo_pipeline
+from newsfeedback.main import get_pipeline_from_config, pipeline_picker, write_in_config, add_homepage_url
 
 @pytest.fixture
 def caplog(caplog: LogCaptureFixture):
@@ -40,51 +35,41 @@ class TestTrafilaturaPipeline(object):
                    "returned {0} articles, despite expecting {1}".format(len(actual),expected))
         assert len(actual) == expected, message
     
-    def test_get_article_metadata_title_date_url_description_trafilatura_pipeline_goodurl(self):
-        article_url = "https://www.spiegel.de/netzwelt/apps/elon-musk-hetzt-auf-twitter-gegen-anthony-fauci-und-die-queere-community-und-wird-ausgebuht-a-edd3c470-12cb-485d-a6f9-266dc94279de"
-        metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_article_metadata_trafilatura_pipeline(article_url)
-        not_expected = 0
-        message = ("get_article_metadata_trafilatura_pipeline(article_url) "
-                   "returned {0} metadata".format(len(actual)))
-        assert len(actual) != not_expected, message
-
-    def test_get_article_metadata_complete_trafilatura_pipeline(self):
-        article_url = "https://www.spiegel.de/netzwelt/apps/elon-musk-hetzt-auf-twitter-gegen-anthony-fauci-und-die-queere-community-und-wird-ausgebuht-a-edd3c470-12cb-485d-a6f9-266dc94279de"
-        actual = get_article_metadata_trafilatura_pipeline(article_url)
-        not_expected = 0
-        message = ("get_article_metadata_trafilatura_pipeline(article_url) "
-                   "returned {0} articles with metadata.".format(len(actual)))
-        assert len(actual) != not_expected, message
-       
-    def test_get_article_metadata_title_date_url_description_trafilatura_pipeline_badurl(self):        
-        article_url = "https://hans-bredow-institut.de/"
-        metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_article_metadata_trafilatura_pipeline(article_url)
-        expected = 0
-        message = ("get_article_metadata_trafilatura_pipeline(article_url) "
-                   "returned {0} metadata, despite expecting {1}.".format(len(actual), expected))
-        assert len(actual) == expected, message
-        
     def test_get_article_url_and_metadata_title_date_url_description_trafilatura_pipeline_goodurl(self):
-        homepage_url = "https://www.spiegel.de/"
-        metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_article_urls_and_metadata_trafilatura_pipeline(homepage_url)
+        article_url_list = ["https://www.spiegel.de/panorama/bildung/lehrermangel-grundschule-fuehrt-vier-tage-woche-ein-a-fe57dfef-2078-4db2-8609-ac77697f7a18", "https://www.spiegel.de/wirtschaft/unternehmen/ford-will-2300-jobs-in-koeln-und-aachen-streichen-a-097df534-d74d-4092-8600-a4492ed1198d"]
+        actual = get_article_metadata_chain_trafilatura_pipeline(article_url_list)
         not_expected = 0
         message = ("get_article_metadata_trafilatura_pipeline(article_url) "
-                   "returned {0} articles with metadata.".format(len(actual)))
-        assert len(actual) != not_expected, message        
+                   "returned {0} articles with metadata.".format(actual.shape[0],not_expected))
+        assert actual.shape[0] == not_expected, message        
         
     def test_get_article_url_and_metadata_title_date_url_description_trafilatura_pipeline_badurl(self):
-        homepage_url = "https://smo-wiki.leibniz-hbi.de/"
-        metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_article_urls_and_metadata_trafilatura_pipeline(homepage_url)
+        article_url_list = ["https://smo-wiki.leibniz-hbi.de/", "https://smo-wiki.leibniz-hbi.de/"]
+        actual = get_article_metadata_chain_trafilatura_pipeline(article_url_list)
         expected = 0
         message = ("get_article_metadata_trafilatura_pipeline(article_url) "
                    "returned {0} articles with metadata, despite expecting {1}.".format(actual.shape[0],expected))
         assert actual.shape[0] == expected, message     
+    
+    def test_beautifulsoup_pipeline_goodurl(self, tmp_path):
+        homepage_url = "https://www.spiegel.de/"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        filter_choice = 'off'
+        actual = chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)
+        df_from_file = pd.read_csv(actual)
+        message = ("The exported dataframe is empty.")                
+        assert df_from_file.shape[0] != 0, message
 
-
+    def test_beautifulsoup_pipeline_badurl(self, tmp_path):
+        homepage_url = "https://smo-wiki.leibniz-hbi.de/"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        filter_choice = 'off'
+        actual = chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)
+        df_from_file = pd.read_csv(actual)
+        message = ("The exported dataframe is not empty, despite this being expected.")                
+        assert df_from_file.shape[0] == 0, message
 
 class TestFilterPipeline(object):
     ### Not sure if the first two make sense, as the trafilatura pipeline pipeline already 
@@ -120,33 +105,6 @@ class TestFilterPipeline(object):
                    "returned {0} filtered article URLs.".format(len(actual)))
         assert len(actual) != not_expected, message
 
-    def test_filter_get_article_url_and_metadata_title_date_url_description_trafilatura_pipeline_goodurl(self):
-        homepage_url = "https://www.spiegel.de/"
-        metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url)
-        not_expected = 0
-        message = ("get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url) "
-                   "returned {0} filtered articles with metadata.".format(actual.shape[0]))
-        assert actual.shape[0] != not_expected, message      
-        
-    def test_filter_get_article_url_and_metadata_title_date_url_description_trafilatura_pipeline_badurl(self):
-        homepage_url = "https://www.badische-zeitung.de/"
-        metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url)
-        expected = 0
-        message = ("get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url) "
-                   "returned {0} filtered articles with metadata, despite expecting {1}.".format(actual.shape[0],expected))
-        assert actual.shape[0] == expected, message     
-
-    def test_filter_get_article_url_and_metadata_title_date_url_description_bs_pipeline_goodurl(self):
-        homepage_url = "https://www.badische-zeitung.de/"
-        metadata_wanted = ['title', 'date', 'url', 'description']
-        actual = get_filtered_article_urls_and_metadata_bs_pipeline(homepage_url)
-        not_expected = 0
-        message = ("get_filtered_article_urls_and_metadata_bs_pipeline(homepage_url) "
-                   "returned {0} filtered articles with metadata.".format(actual.shape[0]))
-        assert actual.shape[0] != not_expected, message          
-
 class TestBeautifulSoupPipeline(object):
     def test_get_article_urls_bs_pipeline_goodurl(self):
         homepage_url = "https://www.badische-zeitung.de/"
@@ -164,7 +122,6 @@ class TestBeautifulSoupPipeline(object):
         can only be extracted with beautifulsoup.
         """
         article_url = "https://www.badische-zeitung.de/unwetterwarnung-aufgehoben-aber-schnee-und-eis-sollen-ueber-nacht-zurueckkehren"
-        metadata_wanted = ['title', 'date', 'url', 'description']
         actual = get_article_metadata_bs_pipeline(article_url)
         not_expected = 0
         message = ("get_article_metadata_bs_pipeline(article_url) "
@@ -173,7 +130,6 @@ class TestBeautifulSoupPipeline(object):
 
     def test_get_article_metadata_complete_bs_pipeline(self):
         article_url = "https://www.badische-zeitung.de/unwetterwarnung-aufgehoben-aber-schnee-und-eis-sollen-ueber-nacht-zurueckkehren"
-        metadata_wanted = "['title', 'author', 'url', 'hostname', 'description', 'sitename', 'date', 'categories', 'tags', 'fingerprint', 'id', 'license', 'body', 'comments', 'commentsbody', 'raw_text', 'text', 'language']"
         actual = get_article_metadata_bs_pipeline(article_url)
         not_expected = 0
         message = ("get_article_metadata_bs_pipeline(article_url) "
@@ -182,7 +138,6 @@ class TestBeautifulSoupPipeline(object):
 
     def test_get_article_url_and_metadata_title_date_url_description_bs_pipeline_goodurl(self):
         homepage_url = "https://www.badische-zeitung.de/"
-        metadata_wanted = ['title', 'date', 'url', 'description']
         actual = get_article_urls_and_metadata_bs_pipeline(homepage_url)
         not_expected = 0
         message = ("get_article_urls_and_metadata_bs_pipeline(article_url) "
@@ -236,7 +191,6 @@ class TestWebsiteSpecificFunctions(object):
     def test_get_pur_abo_article_urls_and_metadata(self):
         homepage_url = "https://www.zeit.de/"
         class_name = "sp_choice_type_11"
-        metadata_wanted = ['title', 'date', 'url', 'description']
         actual = get_pur_abo_article_urls_and_metadata(homepage_url, class_name)
         not_expected = 0
         message = ("get_pur_abo_article_urls_and_metadata(homepage_url, class_name) "
@@ -246,63 +200,11 @@ class TestWebsiteSpecificFunctions(object):
     def get_pur_abo_filtered_article_urls_and_metadata(self):
         homepage_url = "https://www.zeit.de/"
         class_name = "sp_choice_type_11"
-        metadata_wanted = ['title', 'date', 'url', 'description']
         actual = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name)
         not_expected = 0
         message = ("get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name) "
                    "returned {0} filtered articles with metadata.".format(actual.shape[0]))
         assert actual.shape[0] != not_expected, message
-
-class TestExportCSV(object):
-    def test_export_trafilatura_pipeline_goodurl(self):
-        homepage_url = "https://www.spiegel.de/"
-        metadata_wanted = ['title', 'date', 'url', 'description']
-        output_folder = "tests/output"
-        df = get_filtered_article_urls_and_metadata_trafilatura_pipeline(homepage_url)
-        df_path = export_dataframe(df, homepage_url, output_folder)
-        df_from_file = pd.read_csv(df_path)
-        message = ("The number of entries in the original dataframe ({0}) "
-                   "is not identical to the number of entries "
-                   "in the exported dataframe ({1}).".format(df.shape[0],df_from_file.shape[0]))                
-        assert df.shape[0] == df_from_file.shape[0], message
-    
-    def test_export_bs_pipeline_goodurl(self):
-        homepage_url = "https://www.badische-zeitung.de/"
-        metadata_wanted = ['title', 'date', 'url', 'description']
-        output_folder = "tests/output"
-        df = get_filtered_article_urls_and_metadata_bs_pipeline(homepage_url)
-        df_path = export_dataframe(df, homepage_url, output_folder)
-        df_from_file = pd.read_csv(df_path)
-        message = ("The number of entries in the original dataframe ({0}) "
-                   "is not identical to the number of entries "
-                   "in the exported dataframe ({1}).".format(df.shape[0],df_from_file.shape[0]))                
-        assert df.shape[0] == df_from_file.shape[0], message
-
-    def test_export_unfiltered_pur_abo(self):
-        homepage_url = "https://www.zeit.de/"
-        metadata_wanted = ['title', 'date', 'url', 'description']
-        class_name = "sp_choice_type_11"
-        output_folder = "tests/output"
-        df = get_pur_abo_article_urls_and_metadata(homepage_url, class_name)
-        df_path = export_dataframe(df, homepage_url, output_folder)
-        df_from_file = pd.read_csv(df_path)
-        message = ("The number of entries in the original dataframe ({0}) "
-                   "is not identical to the number of entries "
-                   "in the exported dataframe ({1}).".format(df.shape[0],df_from_file.shape[0]))                
-        assert df.shape[0] == df_from_file.shape[0], message
-
-    def test_export_filtered_pur_abo(self):
-        homepage_url = "https://www.zeit.de/"
-        metadata_wanted = ['title', 'date', 'url', 'description']
-        class_name = "sp_choice_type_11"
-        output_folder = "tests/output"
-        df = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name)
-        df_path = export_dataframe(df, homepage_url, output_folder)
-        df_from_file = pd.read_csv(df_path)
-        message = ("The number of entries in the original dataframe ({0}) "
-                   "is not identical to the number of entries "
-                   "in the exported dataframe ({1}).".format(df.shape[0],df_from_file.shape[0]))                
-        assert df.shape[0] == df_from_file.shape[0], message
 
 class TestClickTrafilaturaPipeline(object):
     def test_click_get_articles_trafilatura_pipeline_goodurl(self, caplog):
@@ -355,10 +257,12 @@ class TestClickTrafilaturaPipeline(object):
         assert "ERROR" in caplog.text, message
 
 class TestClickChainPipelines(object):
-    def test_pipeline_picker_trafilatura(self, caplog):
+    def test_pipeline_picker_trafilatura(self, tmp_path):
         runner = CliRunner()
         homepage_url = "'https://www.spiegel.de/'"
-        output_path = "'tests/output'"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        output_path = f"'{output_folder}'"
         runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
@@ -369,10 +273,12 @@ class TestClickChainPipelines(object):
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
         
-    def test_pipeline_picker_beautifulsoup(self, caplog):
+    def test_pipeline_picker_beautifulsoup(self, tmp_path):
         runner = CliRunner()
         homepage_url = "'https://www.badische-zeitung.de/'"
-        output_path = "'tests/output'"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        output_path = f"'{output_folder}'"
         runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
@@ -383,10 +289,12 @@ class TestClickChainPipelines(object):
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
     
-    def test_pipeline_picker_purabo(self, caplog):
+    def test_pipeline_picker_purabo(self, tmp_path):
         runner = CliRunner()
         homepage_url = "'https://www.zeit.de/'"
-        output_path = "'tests/output'"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        output_path = f"'{output_folder}'"
         runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
@@ -397,17 +305,16 @@ class TestClickChainPipelines(object):
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
         
-    def test_pipeline_picker_all(self):
+    def test_pipeline_picker_all(self, tmp_path):
         list_homepage_url = ['https://www.zeit.de/','https://www.spiegel.de/','https://www.badische-zeitung.de/','https://www.bild.de/','https://www.faz.net/','https://www.focus.de/','https://www.handelsblatt.com/','https://www.n-tv.de/','https://www.rnd.de/','https://www.rtl.de/','https://www.stern.de/','https://www.sueddeutsche.de/','https://www.t-online.de/','https://www.upday.com/de/','https://www.welt.de/','https://www.merkur.de/','https://www.tz.de/','https://www.fr.de/']
         runner = CliRunner()
         list_empty_df = []
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
         for homepage_url in list_homepage_url:
             homepage_name = re.search(r"\..+?\.",f"{homepage_url}").group(0)
             homepage_name = homepage_name.replace(".","") 
-            output_path = f"tests/output/{homepage_name}"
-            if not os.path.exists(output_path):
-                os.mkdir(output_path)
-            output_path = f"'{output_path}'"
+            output_path = f"'{output_folder}'"
             runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
             output_path = output_path.replace("'", "")
             list_of_files = glob.glob(f'{output_path}/*{homepage_name}.csv')
@@ -418,10 +325,12 @@ class TestClickChainPipelines(object):
         message = (f"At least one exported dataframe is empty: {list_empty_df}")                
         assert len(list_empty_df) == 0, message
 
-    def test_click_trafilatura_chain_goodurl(self):
+    def test_click_trafilatura_chain_goodurl(self, tmp_path):
         runner = CliRunner()
         homepage_url = "'https://www.spiegel.de/'"
-        output_path = "'tests/output'"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        output_path = f"'{output_folder}'"
         filter_choice = "'off'"
         runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
@@ -433,10 +342,12 @@ class TestClickChainPipelines(object):
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
 
-    def test_click_trafilatura_chain_badurl(self):
+    def test_click_trafilatura_chain_badurl(self, tmp_path):
         runner = CliRunner()
         homepage_url = "'https://smo-wiki.leibniz-hbi.de/'"
-        output_path = "'tests/output'"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        output_path = f"'{output_folder}'"
         filter_choice = "'off'"
         runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
@@ -448,10 +359,12 @@ class TestClickChainPipelines(object):
         message = ("The exported dataframe is not empty.")                
         assert df_from_file.shape[0] == 0, message
 
-    def test_click_bs_chain(self):
+    def test_click_bs_chain(self, tmp_path):
         runner = CliRunner()
         homepage_url = "'https://www.badische-zeitung.de/'"
-        output_path = "'tests/output'"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        output_path = f"'{output_folder}'"
         filter_choice = "'off'"
         runner.invoke(beautifulsoup_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
@@ -463,10 +376,12 @@ class TestClickChainPipelines(object):
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
 
-    def test_click_filter_trafilatura_chain_goodurl(self):
+    def test_click_filter_trafilatura_chain_goodurl(self, tmp_path):
         runner = CliRunner()
         homepage_url = "'https://www.spiegel.de/'"
-        output_path = "'tests/output'"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        output_path = f"'{output_folder}'"
         filter_choice = "'on'"
         runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
@@ -478,10 +393,12 @@ class TestClickChainPipelines(object):
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
 
-    def test_click_filter_trafilatura_chain_badurl(self):
+    def test_click_filter_trafilatura_chain_badurl(self, tmp_path):
         runner = CliRunner()
         homepage_url = "'https://smo-wiki.leibniz-hbi.de/'"
-        output_path = "'tests/output'"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        output_path = f"'{output_folder}'"
         filter_choice = "'on'"
         runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
@@ -493,10 +410,12 @@ class TestClickChainPipelines(object):
         message = ("The exported dataframe is not empty.")                
         assert df_from_file.shape[0] == 0, message
 
-    def test_click_filter_bs_chain(self):
+    def test_click_filter_bs_chain(self, tmp_path):
         runner = CliRunner()
         homepage_url = "'https://www.badische-zeitung.de/'"
-        output_path = "'tests/output'"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        output_path = f"'{output_folder}'"
         filter_choice = "'on'"
         runner.invoke(beautifulsoup_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
@@ -508,10 +427,12 @@ class TestClickChainPipelines(object):
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
 
-    def test_click_purabo_chain(self):
+    def test_click_purabo_chain(self, tmp_path):
         runner = CliRunner()
         homepage_url = "'https://www.zeit.de/'"
-        output_path = "'tests/output'"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        output_path = f"'{output_folder}'"
         filter_choice = "'off'"
         runner.invoke(purabo_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
@@ -523,10 +444,12 @@ class TestClickChainPipelines(object):
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
 
-    def test_click_filter_purabo_chain(self):
+    def test_click_filter_purabo_chain(self, tmp_path):
         runner = CliRunner()
         homepage_url = "'https://www.zeit.de/'"
-        output_path = "'tests/output'"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        output_path = f"'{output_folder}'"
         filter_choice = "'on'"
         runner.invoke(purabo_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
