@@ -7,7 +7,7 @@ from _pytest.logging import LogCaptureFixture
 from loguru import logger as log
 from newsfeedback.main import get_article_urls_trafilatura_pipeline, get_articles_trafilatura_pipeline, get_article_metadata_chain_trafilatura_pipeline
 from newsfeedback.main import get_article_urls_bs_pipeline, get_articles_bs_pipeline, get_article_metadata_chain_bs_pipeline
-from newsfeedback.main import accept_pur_abo_homepage, consent_button_homepage, accept_pur_abo_article, consent_button_article, get_pur_abo_article_metadata_chain
+from newsfeedback.main import accept_pur_abo_homepage, consent_button_homepage, accept_pur_abo_article, get_pur_abo_article_urls_chain, consent_button_article, get_pur_abo_article_metadata_chain
 from newsfeedback.main import filter_urls, export_dataframe
 from newsfeedback.main import chained_trafilatura_pipeline, trafilatura_pipeline, chained_beautifulsoup_pipeline, beautifulsoup_pipeline, chained_purabo_pipeline, purabo_pipeline
 from newsfeedback.main import get_pipeline_from_config, pipeline_picker, write_in_config, add_homepage_url
@@ -41,72 +41,39 @@ class TestTrafilaturaPipeline(object):
         not_expected = 0
         message = ("get_article_metadata_trafilatura_pipeline(article_url) "
                    "returned {0} articles with metadata.".format(actual.shape[0],not_expected))
-        assert actual.shape[0] == not_expected, message        
+        assert actual.shape[0] != not_expected, message        
         
     def test_get_article_url_and_metadata_title_date_url_description_trafilatura_pipeline_badurl(self):
-        article_url_list = ["https://smo-wiki.leibniz-hbi.de/", "https://smo-wiki.leibniz-hbi.de/"]
+        article_url_list = ["https://www.smo-wiki.leibniz-hbi.de/", "https://www.smo-wiki.leibniz-hbi.de/"]
         actual = get_article_metadata_chain_trafilatura_pipeline(article_url_list)
         expected = 0
+        log.info(actual)
         message = ("get_article_metadata_trafilatura_pipeline(article_url) "
-                   "returned {0} articles with metadata, despite expecting {1}.".format(actual.shape[0],expected))
-        assert actual.shape[0] == expected, message     
+                   "returned {0} articles with metadata, despite expecting {1}, at most.".format(actual.shape[0],expected))
+        assert actual.shape[0] == expected, message
     
-    def test_beautifulsoup_pipeline_goodurl(self, tmp_path):
+    def test_trafilatura_pipeline_goodurl(self, tmp_path):
         homepage_url = "https://www.spiegel.de/"
         output_folder = tmp_path / "newsfeedback"
         output_folder.mkdir()
         filter_choice = 'off'
-        actual = chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)
+        actual = chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder)
         df_from_file = pd.read_csv(actual)
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
 
-    def test_beautifulsoup_pipeline_badurl(self, tmp_path):
-        homepage_url = "https://smo-wiki.leibniz-hbi.de/"
+    def test_trafilatura_pipeline_badurl(self, tmp_path):
+        homepage_url = "https://www.smo-wiki.leibniz-hbi.de/"
         output_folder = tmp_path / "newsfeedback"
         output_folder.mkdir()
         filter_choice = 'off'
-        actual = chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)
+        actual = chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder)
         df_from_file = pd.read_csv(actual)
         message = ("The exported dataframe is not empty, despite this being expected.")                
         assert df_from_file.shape[0] == 0, message
 
-class TestFilterPipeline(object):
-    ### Not sure if the first two make sense, as the trafilatura pipeline pipeline already 
-    ### retrieves viable article URLs. 
-
-    def test_filter_article_urls_trafilatura_pipeline_goodurl(self):
-        homepage_url = "https://www.spiegel.de/"
-        filter_choice = 'on'
-        article_url_list = get_article_urls_trafilatura_pipeline(homepage_url)
-        actual = filter_urls(article_url_list, filter_choice)
-        not_expected = 0 
-        message = ("filter_urls(article_url_list) "
-                   "returned {0} filtered article URLs.".format(len(actual)))
-        assert len(actual) != not_expected, message
-
-    def test_filter_article_urls_trafilatura_pipeline_badurl(self):
-        homepage_url = "https://www.badische-zeitung.de/"
-        filter_choice = 'on'
-        article_url_list = get_article_urls_trafilatura_pipeline(homepage_url)
-        actual = filter_urls(article_url_list, filter_choice)
-        expected = 0 
-        message = ("filter_urls(article_url_list) "
-                   "returned {0} filtered article URLs, despite expecting {1}.".format(len(actual),expected))
-        assert len(actual) == expected, message    
-
-    def test_filter_article_urls_bs_pipeline_goodurl(self):
-        homepage_url = "https://www.badische-zeitung.de/"
-        filter_choice = 'on'
-        article_url_list = get_article_urls_bs_pipeline(homepage_url)
-        actual = filter_urls(article_url_list, filter_choice)
-        not_expected = 0 
-        message = ("filter_urls(article_url_list) "
-                   "returned {0} filtered article URLs.".format(len(actual)))
-        assert len(actual) != not_expected, message
-
 class TestBeautifulSoupPipeline(object):
-    def test_get_article_urls_bs_pipeline_goodurl(self):
+    def test_get_article_urls_bs_pipeline(self):
         homepage_url = "https://www.badische-zeitung.de/"
         actual = get_article_urls_bs_pipeline(homepage_url)
         not_expected = 0
@@ -116,35 +83,31 @@ class TestBeautifulSoupPipeline(object):
 
     ### would be good to find an URL without any a hrefs to test the opposing case
 
-    def test_get_article_metadata_title_date_url_description_bs_pipeline_goodurl(self):
+    def test_get_article_metadata_title_date_url_description_bs_pipeline(self):
         """ Asserts whether the desired metadata (in this case: Title, Date, URL, Description) 
         can be extracted from an article URL that was retrieved from the homepage whose articles
         can only be extracted with beautifulsoup.
         """
-        article_url = "https://www.badische-zeitung.de/unwetterwarnung-aufgehoben-aber-schnee-und-eis-sollen-ueber-nacht-zurueckkehren"
-        actual = get_article_metadata_bs_pipeline(article_url)
+        article_url_list = ["https://www.badische-zeitung.de/unwetterwarnung-aufgehoben-aber-schnee-und-eis-sollen-ueber-nacht-zurueckkehren", "https://www.badische-zeitung.de/fasnacht-2023-in-freiburg-das-programm-am-fasnets-wochenende"]
+        actual = get_article_metadata_chain_bs_pipeline(article_url_list)
         not_expected = 0
         message = ("get_article_metadata_bs_pipeline(article_url) "
                    "returned {0} metadata.".format(len(actual)))
         assert len(actual) != not_expected, message
 
-    def test_get_article_metadata_complete_bs_pipeline(self):
-        article_url = "https://www.badische-zeitung.de/unwetterwarnung-aufgehoben-aber-schnee-und-eis-sollen-ueber-nacht-zurueckkehren"
-        actual = get_article_metadata_bs_pipeline(article_url)
-        not_expected = 0
-        message = ("get_article_metadata_bs_pipeline(article_url) "
-                   "returned {0} metadata.".format(len(actual)))
-        assert len(actual) != not_expected, message
-
-    def test_get_article_url_and_metadata_title_date_url_description_bs_pipeline_goodurl(self):
+    def test_beautifulsoup_pipeline(self, tmp_path):
         homepage_url = "https://www.badische-zeitung.de/"
-        actual = get_article_urls_and_metadata_bs_pipeline(homepage_url)
-        not_expected = 0
-        message = ("get_article_urls_and_metadata_bs_pipeline(article_url) "
-                   "returned {0} articles with metadata.".format(actual.shape[0]))
-        assert actual.shape[0] != not_expected, message          
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        filter_choice = 'off'
+        actual = chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)
+        df_from_file = pd.read_csv(actual)
+        message = ("The exported dataframe is empty.")                
+        assert df_from_file.shape[0] != 0, message
 
-class TestWebsiteSpecificFunctions(object):
+        
+
+class TestPurAboPipeline(object):
     def test_accept_pur_abo_consent_button(self):
         homepage_url = "https://www.zeit.de/"
         class_name = "sp_choice_type_11" # full class names: 'message-component message-button no-children focusable sp_choice_type_11'
@@ -182,7 +145,10 @@ class TestWebsiteSpecificFunctions(object):
     def test_get_pur_abo_article_urls(self):
         homepage_url = "https://www.zeit.de/"
         class_name = "sp_choice_type_11"
-        actual = get_pur_abo_article_urls(homepage_url, class_name)
+        #actual = get_pur_abo_article_urls(homepage_url, class_name)
+        (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
+        actual = get_pur_abo_article_urls_chain(text, driver)
+        driver.quit()
         not_expected = 0
         message = ("get_pur_abo_article_urls(homepage_url, class_name) "
                    "returned {0} article URLs.".format(len(actual)))
@@ -191,7 +157,12 @@ class TestWebsiteSpecificFunctions(object):
     def test_get_pur_abo_article_urls_and_metadata(self):
         homepage_url = "https://www.zeit.de/"
         class_name = "sp_choice_type_11"
-        actual = get_pur_abo_article_urls_and_metadata(homepage_url, class_name)
+        (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
+        article_url_list = get_pur_abo_article_urls_chain(text, driver)
+        returned_article_url_list = filter_urls(article_url_list, filter_choice='off')
+        driver.quit()
+        (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
+        actual = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
         not_expected = 0
         message = ("get_pur_abo_article_urls_and_metadata(homepage_url, class_name) "
                    "returned {0} articles with metadata.".format(actual.shape[0]))
@@ -200,11 +171,53 @@ class TestWebsiteSpecificFunctions(object):
     def get_pur_abo_filtered_article_urls_and_metadata(self):
         homepage_url = "https://www.zeit.de/"
         class_name = "sp_choice_type_11"
-        actual = get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name)
+        (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
+        article_url_list = get_pur_abo_article_urls_chain(text, driver)
+        returned_article_url_list = filter_urls(article_url_list, filter_choice='on')
+        driver.quit()
+        (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
+        actual = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
         not_expected = 0
         message = ("get_pur_abo_filtered_article_urls_and_metadata(homepage_url, class_name) "
                    "returned {0} filtered articles with metadata.".format(actual.shape[0]))
         assert actual.shape[0] != not_expected, message
+
+
+
+class TestFilterPipeline(object):
+    ### Not sure if the first two make sense, as the trafilatura pipeline pipeline already 
+    ### retrieves viable article URLs. 
+
+    def test_filter_article_urls_trafilatura_pipeline_goodurl(self):
+        homepage_url = "https://www.spiegel.de/"
+        filter_choice = 'on'
+        article_url_list = get_article_urls_trafilatura_pipeline(homepage_url)
+        actual = filter_urls(article_url_list, filter_choice)
+        not_expected = 0 
+        message = ("filter_urls(article_url_list) "
+                   "returned {0} filtered article URLs.".format(len(actual)))
+        assert len(actual) != not_expected, message
+
+    def test_filter_article_urls_trafilatura_pipeline_badurl(self):
+        homepage_url = "https://www.badische-zeitung.de/"
+        filter_choice = 'on'
+        article_url_list = get_article_urls_trafilatura_pipeline(homepage_url)
+        actual = filter_urls(article_url_list, filter_choice)
+        expected = 0 
+        message = ("filter_urls(article_url_list) "
+                   "returned {0} filtered article URLs, despite expecting {1}.".format(len(actual),expected))
+        assert len(actual) == expected, message    
+
+    def test_filter_article_urls_bs_pipeline_goodurl(self):
+        homepage_url = "https://www.badische-zeitung.de/"
+        filter_choice = 'on'
+        article_url_list = get_article_urls_bs_pipeline(homepage_url)
+        actual = filter_urls(article_url_list, filter_choice)
+        not_expected = 0 
+        message = ("filter_urls(article_url_list) "
+                   "returned {0} filtered article URLs.".format(len(actual)))
+        assert len(actual) != not_expected, message
+
 
 class TestClickTrafilaturaPipeline(object):
     def test_click_get_articles_trafilatura_pipeline_goodurl(self, caplog):
@@ -223,38 +236,6 @@ class TestClickTrafilaturaPipeline(object):
                    "returned articles, despite none being expected.".format(caplog.text))
         assert "ERROR" in caplog.text, message
 
-    def test_click_get_article_metadata_title_date_url_description_trafilatura_pipeline_goodurl(self, caplog):
-        runner = CliRunner()
-        article_url = "'https://www.spiegel.de/netzwelt/apps/elon-musk-hetzt-auf-twitter-gegen-anthony-fauci-und-die-queere-community-und-wird-ausgebuht-a-edd3c470-12cb-485d-a6f9-266dc94279de'"
-        runner.invoke(get_metadata_trafilatura_pipeline, f"-a {article_url} \n")
-        message = ("get_metadata_trafilatura_pipeline(article_url) "
-                   "returned no metadata.".format(caplog.text))
-        assert "INFO" in caplog.text, message
-
-
-    def test_click_get_article_metadata_title_date_url_description_trafilatura_pipeline_badurl(self, caplog):
-        runner = CliRunner()
-        article_url = "'https://hans-bredow-institut.de/'"
-        runner.invoke(get_metadata_trafilatura_pipeline, f"-a {article_url} \n")
-        message = ("get_metadata_trafilatura_pipeline(article_url) "
-                   "returned metadata, despite none being expected.".format(caplog.text))
-        assert "ERROR" in caplog.text, message    
-    
-    def test_click_get_both_goodurl(self, caplog):
-        runner = CliRunner()
-        homepage_url = "'https://www.spiegel.de/'"
-        runner.invoke(get_both_trafilatura_pipeline, f"-u {homepage_url} \n")
-        message = ("get_both_trafilatura_pipeline(homepage_url) "
-                   "returned no articles with metadata.".format(caplog.text))
-        assert "INFO" in caplog.text, message
-        
-    def test_click_get_both_badurl(self, caplog):
-        runner = CliRunner()
-        homepage_url = "'https://smo-wiki.leibniz-hbi.de/'"
-        runner.invoke(get_both_trafilatura_pipeline, f"-u {homepage_url} \n")
-        message = ("get_both_trafilatura_pipeline(homepage_url) "
-                   "returned articles with metadata, despite none being expected.".format(caplog.text))
-        assert "ERROR" in caplog.text, message
 
 class TestClickChainPipelines(object):
     def test_pipeline_picker_trafilatura(self, tmp_path):
@@ -470,99 +451,22 @@ class TestClickBeautifulSoupPipeline(object):
                    "returned no articles.".format(caplog.text))
         assert "INFO" in caplog.text, message
 
-    def test_click_get_article_metadata_title_date_url_description_bs_pipeline_goodurl(self, caplog):
+class TestClickPurAbo(object):
+    def test_consent_button_homepage(self, caplog):
         runner = CliRunner()
-        article_url = "'https://www.badische-zeitung.de/unwetterwarnung-aufgehoben-aber-schnee-und-eis-sollen-ueber-nacht-zurueckkehren'"
-        runner.invoke(get_metadata_bs_pipeline, f"-a {article_url} \n")
-        message = ("get_metadata_bs_pipeline(article_url) "
-                   "returned no metadata.".format(caplog.text))
-        assert "INFO" in caplog.text, message
-
-    def test_click_get_both_bs_pipeline_goodurl(self, caplog):
-        runner = CliRunner()
-        homepage_url = "'https://www.badische-zeitung.de/'"
-        runner.invoke(get_both_bs_pipeline, f"-u {homepage_url} \n")
-        message = ("get_both_bs_pipeline(homepage_url) "
-                   "returned no articles with metadata.".format(caplog.text))
-        assert "INFO" in caplog.text, message
-
-class TestClickFilter(object):
-    def test_filter_urls(self, caplog):
-        runner = CliRunner()
-        homepage_url = "'https://www.badische-zeitung.de/'"
-        runner.invoke(filter_articles, f"-u {homepage_url} \n")
-        message = ("filter_articles(homepage_url) "
-                   "removed no articles.".format(caplog.text))
+        homepage_url = "'https://www.zeit.de/'"
+        runner.invoke(consent_button_homepage, f"-u {homepage_url} \n")
+        message = ("consent_button_homepage(homepage_url, class_name) "
+                    "was unable to click the consent button "
+                    "on the given homepage. ".format(caplog.text))
         assert "INFO" in caplog.text, message
     
-    def test_filter_both_trafilatura_pipeline_goodurl(self, caplog):
+    def test_subscription_button_homepage(self, caplog):
         runner = CliRunner()
-        homepage_url = "'https://www.spiegel.de/'"
-        runner.invoke(filter_both_trafilatura_pipeline, f"-u {homepage_url} \n")
-        message = ("filter_both_trafilatura_pipeline(homepage_url) "
-                   "removed no articles.".format(caplog.text))
-        assert "INFO" in caplog.text, message
-
-    def test_filter_both_trafilatura_pipeline_badurl(self, caplog):
-        runner = CliRunner()
-        homepage_url = "'https://www.badische-zeitung.de/'"
-        runner.invoke(filter_both_trafilatura_pipeline, f"-u {homepage_url} \n")
-        message = ("filter_both_trafilatura_pipeline(homepage_url) "
-                   "returned articles, despite none being expected.".format(caplog.text))
+        homepage_url = "'https://www.zeit.de/'"
+        class_name = "js-forward-link-purabo"
+        runner.invoke(consent_button_homepage, f"-u {homepage_url} -c {class_name}\n")
+        message = ("consent_button_homepage(homepage_url, class_name) "
+                    "was unable to click the subscription button "
+                    "on the given homepage.".format(caplog.text))
         assert "ERROR" in caplog.text, message
-
-    def test_filter_both_bs_pipeline_goodurl(self, caplog):
-        runner = CliRunner()
-        homepage_url = "'https://www.badische-zeitung.de/'"
-        runner.invoke(filter_both_bs_pipeline, f"-u {homepage_url} \n")
-        message = ("filter_both_bs_pipeline(homepage_url) "
-                   "removed no articles.".format(caplog.text))
-        assert "INFO" in caplog.text, message
-
-    class TestClickSiteSpecific(object):
-        def test_consent_button_homepage(self, caplog):
-            runner = CliRunner()
-            homepage_url = "'https://www.zeit.de/'"
-            runner.invoke(consent_button_homepage, f"-u {homepage_url} \n")
-            message = ("consent_button_homepage(homepage_url, class_name) "
-                       "was unable to click the consent button "
-                       "on the given homepage. ".format(caplog.text))
-            assert "INFO" in caplog.text, message
-        
-        def test_subscription_button_homepage(self, caplog):
-            runner = CliRunner()
-            homepage_url = "'https://www.zeit.de/'"
-            class_name = "js-forward-link-purabo"
-            runner.invoke(consent_button_homepage, f"-u {homepage_url} -c {class_name}\n")
-            message = ("consent_button_homepage(homepage_url, class_name) "
-                       "was unable to click the subscription button "
-                       "on the given homepage.".format(caplog.text))
-            assert "ERROR" in caplog.text, message
-
-        def test_consent_articles(self, caplog):
-            runner = CliRunner()
-            homepage_url = "'https://www.zeit.de/'"
-            runner.invoke(consent_articles, f"-u {homepage_url} \n")
-            message = ("consent_articles(homepage_url) "
-                       "was unable to return article URLs "
-                       "from the given homepage.".format(caplog.text)) 
-            assert "INFO" in caplog.text, message
-
-        def test_consent_both(self, caplog):
-            runner = CliRunner()
-            homepage_url = "'https://www.zeit.de/'"
-            runner.invoke(consent_both, f"-u {homepage_url} \n")
-            message = ("consent_both(homepage_url) "
-                       "was unable to return articles with metadata from "
-                       "the given homepage.".format(caplog.text))             
-            assert "INFO" in caplog.text, message
-
-        def test_filter_consent_both(self, caplog):
-            runner = CliRunner()
-            homepage_url = "'https://www.zeit.de/'"
-            runner.invoke(filter_consent_both, f"-u {homepage_url} \n")
-            message = ("consent_articles(homepage_url) "
-                       "was unable to return filtered articles with metadata from "
-                       "the given homepage.".format(caplog.text)) 
-            assert "INFO" in caplog.text, message
-

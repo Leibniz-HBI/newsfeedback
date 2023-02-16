@@ -53,6 +53,7 @@ def get_articles_trafilatura_pipeline(homepage_url):
 def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
     metadata_config = retrieve_config("metadata")
     metadata_wanted = [k for k,v in metadata_config.items() if v == True]
+    metadata_wanted.append('datetime')
     article_list = []
     for article_url in article_url_list:
         downloaded = trafilatura.fetch_url(article_url)
@@ -68,15 +69,15 @@ def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
             datetime = time.strftime(r"%Y%m%d-%H%M")
             datetime_column = {'datetime':datetime}
             metadata.update(datetime_column)
-            log.info(f'Metadata was found.')
         else:
             metadata = []
             log.error(f'No metadata was found.')
         article_list.append(metadata)
-    df = pd.DataFrame(article_list, columns = metadata_wanted)
-    if df.shape[0] != 0:
+    try:
+        df = pd.DataFrame(article_list, columns = metadata_wanted)
         log.info(f'{df.shape[0]} articles with metadata were found.')
-    else:
+    except ValueError:
+        df = pd.DataFrame(columns=metadata_wanted)
         log.error(f'No articles with metadata were found.')
     return df
 
@@ -110,6 +111,7 @@ def get_article_urls_bs_pipeline(homepage):
                 if homepage_de:
                     homepage_split = homepage_de.group(0)
                 else:
+                    log.info(homepage_url)
                     homepage_split = re.search(r'(https://www\..+?\.\w{2,3})', homepage_url).group(0)
                 homepage_check = re.search(fr'{homepage_split}/.+', href)
                 if homepage_check:
@@ -129,7 +131,6 @@ def get_articles_bs_pipeline(homepage_url):
     get_article_urls_bs_pipeline(homepage_url)
 
 def get_article_metadata_chain_bs_pipeline(article_url_list):
-    log.info("getting article metadata")
     metadata_config = retrieve_config("metadata")
     metadata_wanted = [k for k,v in metadata_config.items() if v == True]
     article_list = []
@@ -155,7 +156,6 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
                 datetime = time.strftime(r"%Y%m%d-%H%M")
                 datetime_column = {'datetime':datetime}
                 metadata.update(datetime_column)
-                log.info(f'Metadata was found.')  
             else:
                 metadata = {}
                 log.error(f'No metadata was found.')
@@ -217,15 +217,6 @@ def accept_pur_abo_article(article_url_list, class_name):
         log.error(text)
     return text, driver
 
-@cli.command(help='Presses the consent button before retrieving article metadata.')
-@click.option('-l', '--article-url-list',
-              help='This is the list of article URLs retrieved from the homepage.')
-@click.option('-c', '--class-name', default='sp_choice_type_11',
-              help='This is the class name of the consent button. If no name is given, '
-              'newsfeedback uses the class name used by ZEIT Online for their consent button.')
-def consent_button_article(article_url_list, class_name):
-    accept_pur_abo_article(article_url_list, class_name)
-
 def get_pur_abo_article_urls_chain(text, driver):
     try:
         article_url_list = []
@@ -268,6 +259,9 @@ def get_pur_abo_article_urls_chain(text, driver):
 
 def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
     article_list = []
+    metadata_config = retrieve_config("metadata")
+    metadata_wanted = [k for k,v in metadata_config.items() if v == True]
+    metadata_wanted.append('datetime')
     for article_url in article_url_list:
         if article_url != None:
             driver.get(article_url)
@@ -277,8 +271,7 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
             else:
                 downloaded = article_page_source
             if downloaded != None:
-                metadata_config = retrieve_config("metadata")
-                metadata_wanted = [k for k,v in metadata_config.items() if v == True]
+                
                 metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
                 if metadata != None:
                     dict_keys = list(metadata.keys())
@@ -291,7 +284,7 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
                     datetime = time.strftime(r"%Y%m%d-%H%M")
                     datetime_column = {'datetime':datetime}
                     metadata.update(datetime_column)
-                    log.info(f'Metadata was found.')  
+                    #log.info(f'Metadata was found.')  
                 else:
                     metadata = {}
                     log.error(f'No metadata was found.')
@@ -331,11 +324,13 @@ def filter_urls(article_url_list, filter_choice):
 ### Export
 
 def export_dataframe(df, homepage_url, output_folder):
-    log.info('Test - export_dataframe')
+    df_name = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+    df_name = df_name.replace(".","") 
+    timestr = time.strftime(r"%Y%m%d-%H%M")
+    output_subfolder = f'{output_folder}/{df_name}'
+    if not os.path.exists(output_subfolder):
+        os.makedirs(output_subfolder)
     try:
-        df_name = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-        df_name = df_name.replace(".","") 
-        timestr = time.strftime(r"%Y%m%d-%H%M")
         df_path = f"{output_folder}/{timestr}-"+f"{df_name}"+f".csv"
         df.to_csv(df_path, index=False, mode='a')
         log.info(f'File generated at: {df_path}')
