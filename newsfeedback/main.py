@@ -483,7 +483,6 @@ def initiate_data_collection(output_folder):
 @click.option('-o', '--output-folder', default='newsfeedback/output',
               help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
 def get_data(hour, output_folder):
-    #initiate_data_collection(output_folder)
     schedule.every(int(hour)).hours.do(initiate_data_collection, output_folder)
     while True:
         schedule.run_pending()
