@@ -1,4 +1,4 @@
-import trafilatura, click, re, time, sys, yaml, os
+import trafilatura, click, re, time, yaml, os, schedule
 import pandas as pd
 from trafilatura import feeds
 from loguru import logger as log
@@ -11,7 +11,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import TimeoutException
 
-log.add(sys.stderr, format = "<red>[{level}]</red> : <green>{message}</green> @ {time}", colorize=True, level="ERROR")
+#log.add(sys.stderr, format = "<red>[{level}]</red> : <green>{message}</green> @ {time}", colorize=True, level="ERROR")
 
 @click.group()
 def cli():
@@ -20,13 +20,13 @@ def cli():
 
 def retrieve_config(type_config):
     if type_config == "metadata":
-        if os.path.isfile("newsfeedback/user_metadata_config.yaml"):
-            config_file = "newsfeedback/user_metadata_config.yaml"
+        if os.path.isfile("user_metadata_config.yaml"):
+            config_file = "user_metadata_config.yaml"
         else:
             config_file = "newsfeedback/default_metadata_config.yaml"
     elif type_config == "homepage":
-        if os.path.isfile("newsfeedback/user_homepage_config.yaml"):
-            config_file = "newsfeedback/user_homepage_config.yaml"
+        if os.path.isfile("user_homepage_config.yaml"):
+            config_file = "user_homepage_config.yaml"
         else:
             config_file = "newsfeedback/default_homepage_config.yaml"
     with open(config_file, "r") as yamlfile:
@@ -71,7 +71,7 @@ def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
             metadata.update(datetime_column)
         else:
             metadata = []
-            log.error(f'No metadata was found.')
+            log.error(f'{article_url}: No metadata was found.')
         article_list.append(metadata)
     try:
         df = pd.DataFrame(article_list, columns = metadata_wanted)
@@ -111,7 +111,6 @@ def get_article_urls_bs_pipeline(homepage):
                 if homepage_de:
                     homepage_split = homepage_de.group(0)
                 else:
-                    log.info(homepage_url)
                     homepage_split = re.search(r'(https://www\..+?\.\w{2,3})', homepage_url).group(0)
                 homepage_check = re.search(fr'{homepage_split}/.+', href)
                 if homepage_check:
@@ -158,10 +157,10 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
                 metadata.update(datetime_column)
             else:
                 metadata = {}
-                log.error(f'No metadata was found.')
+                log.error(f'{article}: No metadata was found.')
         else:  
             metadata = {}
-            log.error(f'No metadata was found.')
+            log.error(f'{article}: No metadata was found.')
         article_list.append(metadata)
     df = pd.DataFrame(article_list, columns = metadata_wanted)
     if df.shape[0] != 0:
@@ -186,10 +185,8 @@ def accept_pur_abo_homepage(homepage_url, class_name):
         text = driver.page_source
         log.info("The consent button was successfully clicked.")
     except TimeoutException:
-        text = 'Element could not be found, connection timed out.' # text variable probably superfluous
-        log.error(text)
+        log.error('Element could not be found, connection timed out.')
     return text, driver
-
 
 @cli.command(help='Presses the consent button on the homepage of a website with a so-called "Pur Abo".')
 @click.option('-u','--homepage-url',
@@ -216,6 +213,7 @@ def accept_pur_abo_article(article_url_list, class_name):
         text = 'Element could not be found, connection timed out.' # text variable probably superfluous
         log.error(text)
     return text, driver
+
 
 def get_pur_abo_article_urls_chain(text, driver):
     try:
@@ -404,7 +402,7 @@ def purabo_pipeline(homepage_url, class_name, filter_choice, output_folder):
 def get_pipeline_from_config(homepage_url, output_folder):
     homepage_config = retrieve_config('homepage')
     data = homepage_config.get(homepage_url)
-    try:
+    if data:
         pipeline = data.get('pipeline')
         filter_option = data.get('filter')
         log.info(f'{homepage_url} uses the {pipeline} pipeline and has filtering turned {filter_option}.')
@@ -416,8 +414,10 @@ def get_pipeline_from_config(homepage_url, output_folder):
             chained_purabo_pipeline(homepage_url, 'sp_choice_type_11', filter_option, output_folder)
         else:
             log.error('Please check the pipeline information given for this URL.')
-    except KeyError:
-        log.error("Uh oh. Error!")
+    else:
+        log.error("Please check that the URL you have given matches the required structure (https://www.name.de/) "
+                  "and has already been added to the config. Otherwise add it to the config via the CLI "
+                  "with 'newsfeedback add-homepage-url ")
     
 @cli.command(help="Chooses and executes the pipeline saved in the config file.")
 @click.option('-u','--homepage-url',
@@ -426,6 +426,7 @@ def get_pipeline_from_config(homepage_url, output_folder):
               help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
 
 def pipeline_picker(homepage_url, output_folder):
+
     get_pipeline_from_config(homepage_url, output_folder)
 
 def write_in_config(homepage_url, chosen_pipeline, filter_option):
@@ -438,14 +439,13 @@ def write_in_config(homepage_url, chosen_pipeline, filter_option):
     else:
         chosen_pipeline = 'error'
 
-    new_homepage = [
-        {
+    new_homepage = {
             homepage_url: {
                 'pipeline' : chosen_pipeline,
                 'filter' : filter_option.replace("'","")
             }
         }
-    ]
+    
 
     with open("user_homepage_config.yaml", 'a+') as yamlfile:
         yaml.dump(new_homepage, yamlfile)
@@ -453,7 +453,7 @@ def write_in_config(homepage_url, chosen_pipeline, filter_option):
 
 @cli.command(help="Adds a new homepage to the config file.")
 @click.option('-u', '--homepage-url',
-              prompt="Your homepage URL (format https://www.name.de/) ",
+              prompt="Your homepage URL (required format: https://www.name.de/) ",
               help="The homepage URL you wish to add (i.e. https://www.spiegel.de/) to the config file. "
               "Please follow the example URL structure to reduce the potential for duplicates. ")
 @click.option('-p', '--chosen-pipeline',
@@ -470,7 +470,24 @@ def write_in_config(homepage_url, chosen_pipeline, filter_option):
 def add_homepage_url(homepage_url, chosen_pipeline, filter_option):
     write_in_config(homepage_url, chosen_pipeline, filter_option)
 
+def initiate_data_collection(output_folder):
+    homepage_config = retrieve_config('homepage')
+    homepage_url_list = list(homepage_config.keys())
+    for homepage_url in homepage_url_list:
+        get_pipeline_from_config(homepage_url, output_folder)
 
+@cli.command(help="Runs the full pipeline for the URLs saveds in either the user or default "
+              "config file on schedule.")
+@click.option('-t', '--hour', default='6',
+              help='Run data extraction once every X hours. This is X, but defaults to 6.')
+@click.option('-o', '--output-folder', default='newsfeedback/output',
+              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+def get_data(hour, output_folder):
+    #initiate_data_collection(output_folder)
+    schedule.every(int(hour)).hours.do(initiate_data_collection, output_folder)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
 if __name__ == "main":
     cli()
