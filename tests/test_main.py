@@ -544,7 +544,7 @@ class TestPipelineFromConfig(object):
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
         latest_file = max(list_of_files, key=os.path.getctime)
         df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
         message = ("The exported dataframe is empty.")                
@@ -562,7 +562,7 @@ class TestPipelineFromConfig(object):
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
         latest_file = max(list_of_files, key=os.path.getctime)
         df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
         message = ("The exported dataframe is empty.")                
@@ -580,7 +580,7 @@ class TestPipelineFromConfig(object):
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
         latest_file = max(list_of_files, key=os.path.getctime)
         df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
         message = ("The exported dataframe is empty.")                
@@ -595,12 +595,12 @@ class TestPipelineFromConfig(object):
         output_folder = tmp_path / "newsfeedback"
         output_folder.mkdir()
         for homepage_url in list_homepage_url:
-            homepage_name = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-            homepage_name = homepage_name.replace(".","") 
+            homepage_homepagename = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+            homepage = homepage.replace(".","") 
             output_path = f"'{output_folder}'"
             runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
             output_path = output_path.replace("'", "")
-            list_of_files = glob.glob(f'{output_path}/*{homepage_name}.csv')
+            list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
             latest_file = max(list_of_files, key=os.path.getctime)
             df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
             if df_from_file.shape[0] == 0:
