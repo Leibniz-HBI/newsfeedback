@@ -1,0 +1,3 @@
+https://www.spiegel.de/:
+  filter: 'off'
+  pipeline: trafilatura

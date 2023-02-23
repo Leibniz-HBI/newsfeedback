@@ -329,7 +329,7 @@ def export_dataframe(df, homepage_url, output_folder):
     if not os.path.exists(output_subfolder):
         os.makedirs(output_subfolder)
     try:
-        df_path = f"{output_folder}/{timestr}-"+f"{df_name}"+f".csv"
+        df_path = f"{output_subfolder}/{timestr}-{df_name}.csv"
         df.to_csv(df_path, index=False, mode='a')
         log.info(f'File generated at: {df_path}')
     except:
