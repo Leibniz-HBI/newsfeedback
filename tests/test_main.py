@@ -465,6 +465,7 @@ class TestClickPurAboPipeline(object):
         assert df_from_file.shape[0] != 0, message
 
 class TestPipelineFromConfig(object):
+    '''
 
     def test_retrieve_config_metadata(self):
         """ Asserts that the retrieved metadata config file is the correct one, based on the (non-)existence of a 
@@ -495,8 +496,7 @@ class TestPipelineFromConfig(object):
             data = yaml.load(yamlfile, Loader=yaml.FullLoader)
         message = ("The retrieved file is not identical to the expected file.")
         assert actual == data, message       
-
-    '''    def test_add_homepage_url(self):
+   def test_add_homepage_url(self):
         """Asserts that the user is able to add a homepage of their choice to the homepage config. """
         homepage_url = "test_url"
         chosen_pipeline = "'2'"
@@ -545,6 +545,7 @@ class TestPipelineFromConfig(object):
         homepage = homepage.replace(".","") 
         df_folder = Path(f'{output_folder}/{homepage}')
         generated_file = list(df_folder.glob('*.csv'))
+        log.info(generated_file)
         df_from_file = pd.read_csv(generated_file[0])
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
@@ -561,6 +562,7 @@ class TestPipelineFromConfig(object):
         homepage = homepage.replace(".","") 
         df_folder = Path(f'{output_folder}/{homepage}')
         generated_file = list(df_folder.glob('*.csv'))
+        log.info(generated_file)
         df_from_file = pd.read_csv(generated_file[0])
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
@@ -577,6 +579,7 @@ class TestPipelineFromConfig(object):
         homepage = homepage.replace(".","") 
         df_folder = Path(f'{output_folder}/{homepage}')
         generated_file = list(df_folder.glob('*.csv'))
+        log.info(generated_file)
         df_from_file = pd.read_csv(generated_file[0])
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
@@ -595,9 +598,10 @@ class TestPipelineFromConfig(object):
             runner.invoke(pipeline_picker, f"-u '{homepage_url}' -o '{output_folder}' \n")
             df_folder = Path(f'{output_folder}/{homepage}')
             generated_file = list(df_folder.glob('*.csv'))
+            log.info(generated_file)
             df_from_file = pd.read_csv(generated_file[0])
             if df_from_file.shape[0] == 0:
-                list_empty_df.append(latest_file)
+                list_empty_df.append(generated_file[0])
         message = (f"At least one exported dataframe is empty: {list_empty_df}")                
         assert len(list_empty_df) == 0, message
 

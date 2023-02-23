@@ -72,7 +72,7 @@ def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
             metadata.update(datetime_column)
         else:
             metadata = []
-            log.error(f'{article_url}: No metadata was found.')
+            #log.error(f'{article_url}: No metadata was found.')
         article_list.append(metadata)
     try:
         df = pd.DataFrame(article_list, columns = metadata_wanted)
@@ -158,10 +158,10 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
                 metadata.update(datetime_column)
             else:
                 metadata = {}
-                log.error(f'{article}: No metadata was found.')
+                #log.error(f'{article}: No metadata was found.')
         else:  
             metadata = {}
-            log.error(f'{article}: No metadata was found.')
+            #log.error(f'{article}: No metadata was found.')
         article_list.append(metadata)
     df = pd.DataFrame(article_list, columns = metadata_wanted)
     if df.shape[0] != 0:
@@ -291,10 +291,10 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
                     #log.info(f'Metadata was found.')  
                 else:
                     metadata = {}
-                    log.error(f'No metadata was found.')
+                    #log.error(f'No metadata was found.')
             else:  
                 metadata = {}
-                log.error(f'No metadata was found.')
+                #log.error(f'No metadata was found.')
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
                 article_list.append(metadata)
     if len(article_list) != 0:
@@ -331,10 +331,7 @@ def export_dataframe(df, homepage_url, output_folder):
     df_name = re.search(r"\..+?\.",f"{homepage_url}").group(0)
     df_name = df_name.replace(".","") 
     timestr = time.strftime(r"%Y%m%d-%H%M")
-    #windowspath_output_folder = pathlib.Path(output_folder)
-    log.info(f"Path: {output_folder}")
     output_folder = Path(output_folder)
-    #output_subfolder = f'{output_folder}/{df_name}'
     output_subfolder = (output_folder/df_name)
     Path(output_subfolder).mkdir(exist_ok=True)
     try:
@@ -390,10 +387,7 @@ def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_fold
     driver.quit()
     (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
     df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
-    
-    log.info(df)
     export_dataframe(df, homepage_url, output_folder)
-    #df_path = export_dataframe(get_article_metadata_chain_bs_pipeline(filter_urls(consent_button_article_chain(get_article_urls_bs_pipeline(consent_button_homepage_chain(homepage_url))), filter_choice)), homepage_url, output_folder)
 
 @cli.command(help="[PURABO PIPELINE] - Executes the complete pur abo pipeline.")
 @click.option('-u','--homepage-url',
