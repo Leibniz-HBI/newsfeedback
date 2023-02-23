@@ -131,3 +131,4 @@ dmypy.json
 poetry.lock
 tests/report.html
 newsfeedback/tests/report.html
+user_homepage_config.yaml

@@ -1,5 +1,6 @@
 import trafilatura, click, re, time, yaml, os, schedule
 import pandas as pd
+from pathlib import Path
 from trafilatura import feeds
 from loguru import logger as log
 from bs4 import BeautifulSoup
@@ -175,6 +176,8 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
 def accept_pur_abo_homepage(homepage_url, class_name):
     options = webdriver.ChromeOptions()
     options.add_argument('headless') # comment out if you want to see what's happening
+    options.add_argument('--log-level=3')
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
     driver.get(homepage_url)
     try:
@@ -185,7 +188,8 @@ def accept_pur_abo_homepage(homepage_url, class_name):
         text = driver.page_source
         log.info("The consent button was successfully clicked.")
     except TimeoutException:
-        log.error('Element could not be found, connection timed out.')
+        text = 'Element could not be found, connection timed out.'
+        log.error(text)
     return text, driver
 
 @cli.command(help='Presses the consent button on the homepage of a website with a so-called "Pur Abo".')
@@ -200,6 +204,8 @@ def consent_button_homepage(homepage_url, class_name):
 def accept_pur_abo_article(article_url_list, class_name):
     options = webdriver.ChromeOptions()
     options.add_argument('headless') # comment out if you want to see what's happening
+    options.add_argument('--log-level=3')
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
     driver.get(article_url_list[0])
     try:
@@ -325,15 +331,18 @@ def export_dataframe(df, homepage_url, output_folder):
     df_name = re.search(r"\..+?\.",f"{homepage_url}").group(0)
     df_name = df_name.replace(".","") 
     timestr = time.strftime(r"%Y%m%d-%H%M")
-    output_subfolder = f'{output_folder}/{df_name}'
-    if not os.path.exists(output_subfolder):
-        os.makedirs(output_subfolder)
+    #windowspath_output_folder = pathlib.Path(output_folder)
+    log.info(f"Path: {output_folder}")
+    output_folder = Path(output_folder)
+    #output_subfolder = f'{output_folder}/{df_name}'
+    output_subfolder = (output_folder/df_name)
+    Path(output_subfolder).mkdir(exist_ok=True)
     try:
-        df_path = f"{output_subfolder}/{timestr}-{df_name}.csv"
+        df_path = Path(f"{output_subfolder}/{timestr}-{df_name}.csv")
         df.to_csv(df_path, index=False, mode='a')
         log.info(f'File generated at: {df_path}')
     except:
-        log.error('Unexpected error occurred.')
+        log.error('Unexpected error occurred. File could not be generated.')
     return df_path
 
 ### CHAINED PIPELINES
@@ -381,6 +390,8 @@ def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_fold
     driver.quit()
     (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
     df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
+    
+    log.info(df)
     export_dataframe(df, homepage_url, output_folder)
     #df_path = export_dataframe(get_article_metadata_chain_bs_pipeline(filter_urls(consent_button_article_chain(get_article_urls_bs_pipeline(consent_button_homepage_chain(homepage_url))), filter_choice)), homepage_url, output_folder)
 
