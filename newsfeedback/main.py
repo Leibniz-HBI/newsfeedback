@@ -1,5 +1,6 @@
 import trafilatura, click, re, time, yaml, os, schedule
 import pandas as pd
+from pathlib import Path
 from trafilatura import feeds
 from loguru import logger as log
 from bs4 import BeautifulSoup
@@ -19,17 +20,27 @@ def cli():
 
 
 def retrieve_config(type_config):
+    directory = Path().resolve()
+    path_user_metadata_config = directory/"user_metadata_config.yaml"
+    path_default_metadata_config = directory/"newsfeedback"/"defaults"/"default_metadata_config.yaml"
+    path_user_homepage_config = directory/"user_homepage_config.yaml"
+    path_default_homepage_config = directory/"newsfeedback"/"defaults"/"default_homepage_config.yaml"
+
     if type_config == "metadata":
-        if os.path.isfile("user_metadata_config.yaml"):
-            config_file = "user_metadata_config.yaml"
+        if Path(path_user_metadata_config).exists():
+            config_file = Path(path_user_metadata_config)
+            log.info(f"Using the user-generated {type_config} config.")
         else:
-            config_file = "newsfeedback/default_metadata_config.yaml"
+            config_file = Path(path_default_metadata_config)
+            log.info(f"Using the default {type_config} config.")
     elif type_config == "homepage":
-        if os.path.isfile("user_homepage_config.yaml"):
-            config_file = "user_homepage_config.yaml"
+        if Path(path_user_homepage_config).exists():
+            config_file = Path(path_user_homepage_config)
+            log.info(f"Using the user-generated {type_config} config.")
         else:
-            config_file = "newsfeedback/default_homepage_config.yaml"
-    with open(config_file, "r") as yamlfile:
+            config_file = Path(path_default_homepage_config)
+            log.info(f"Using the default {type_config} config.")
+    with config_file.open() as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
         return data
 
@@ -71,7 +82,7 @@ def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
             metadata.update(datetime_column)
         else:
             metadata = []
-            log.error(f'{article_url}: No metadata was found.')
+            #log.error(f'{article_url}: No metadata was found.')
         article_list.append(metadata)
     try:
         df = pd.DataFrame(article_list, columns = metadata_wanted)
@@ -157,10 +168,10 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
                 metadata.update(datetime_column)
             else:
                 metadata = {}
-                log.error(f'{article}: No metadata was found.')
+                #log.error(f'{article}: No metadata was found.')
         else:  
             metadata = {}
-            log.error(f'{article}: No metadata was found.')
+            #log.error(f'{article}: No metadata was found.')
         article_list.append(metadata)
     df = pd.DataFrame(article_list, columns = metadata_wanted)
     if df.shape[0] != 0:
@@ -175,6 +186,8 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
 def accept_pur_abo_homepage(homepage_url, class_name):
     options = webdriver.ChromeOptions()
     options.add_argument('headless') # comment out if you want to see what's happening
+    options.add_argument('--log-level=3')
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
     driver.get(homepage_url)
     try:
@@ -185,7 +198,8 @@ def accept_pur_abo_homepage(homepage_url, class_name):
         text = driver.page_source
         log.info("The consent button was successfully clicked.")
     except TimeoutException:
-        log.error('Element could not be found, connection timed out.')
+        text = 'Element could not be found, connection timed out.'
+        log.error(text)
     return text, driver
 
 @cli.command(help='Presses the consent button on the homepage of a website with a so-called "Pur Abo".')
@@ -200,6 +214,8 @@ def consent_button_homepage(homepage_url, class_name):
 def accept_pur_abo_article(article_url_list, class_name):
     options = webdriver.ChromeOptions()
     options.add_argument('headless') # comment out if you want to see what's happening
+    options.add_argument('--log-level=3')
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
     driver.get(article_url_list[0])
     try:
@@ -285,10 +301,10 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
                     #log.info(f'Metadata was found.')  
                 else:
                     metadata = {}
-                    log.error(f'No metadata was found.')
+                    #log.error(f'No metadata was found.')
             else:  
                 metadata = {}
-                log.error(f'No metadata was found.')
+                #log.error(f'No metadata was found.')
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
                 article_list.append(metadata)
     if len(article_list) != 0:
@@ -325,15 +341,15 @@ def export_dataframe(df, homepage_url, output_folder):
     df_name = re.search(r"\..+?\.",f"{homepage_url}").group(0)
     df_name = df_name.replace(".","") 
     timestr = time.strftime(r"%Y%m%d-%H%M")
-    output_subfolder = f'{output_folder}/{df_name}'
-    if not os.path.exists(output_subfolder):
-        os.makedirs(output_subfolder)
+    output_folder = Path(output_folder)
+    output_subfolder = (output_folder/df_name)
+    Path(output_subfolder).mkdir(exist_ok=True)
     try:
-        df_path = f"{output_folder}/{timestr}-"+f"{df_name}"+f".csv"
+        df_path = Path(f"{output_subfolder}/{timestr}-{df_name}.csv")
         df.to_csv(df_path, index=False, mode='a')
         log.info(f'File generated at: {df_path}')
     except:
-        log.error('Unexpected error occurred.')
+        log.error('Unexpected error occurred. File could not be generated.')
     return df_path
 
 ### CHAINED PIPELINES
@@ -382,7 +398,6 @@ def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_fold
     (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
     df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
     export_dataframe(df, homepage_url, output_folder)
-    #df_path = export_dataframe(get_article_metadata_chain_bs_pipeline(filter_urls(consent_button_article_chain(get_article_urls_bs_pipeline(consent_button_homepage_chain(homepage_url))), filter_choice)), homepage_url, output_folder)
 
 @cli.command(help="[PURABO PIPELINE] - Executes the complete pur abo pipeline.")
 @click.option('-u','--homepage-url',
@@ -417,7 +432,7 @@ def get_pipeline_from_config(homepage_url, output_folder):
     else:
         log.error("Please check that the URL you have given matches the required structure (https://www.name.de/) "
                   "and has already been added to the config. Otherwise add it to the config via the CLI "
-                  "with 'newsfeedback add-homepage-url ")
+                  "with 'newsfeedback add-homepage-url'. Data may be coming from an unintended config (default/custom). ")
     
 @cli.command(help="Chooses and executes the pipeline saved in the config file.")
 @click.option('-u','--homepage-url',
@@ -483,7 +498,6 @@ def initiate_data_collection(output_folder):
 @click.option('-o', '--output-folder', default='newsfeedback/output',
               help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
 def get_data(hour, output_folder):
-    #initiate_data_collection(output_folder)
     schedule.every(int(hour)).hours.do(initiate_data_collection, output_folder)
     while True:
         schedule.run_pending()

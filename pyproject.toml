@@ -15,6 +15,8 @@ trafilatura = "^1.4.1"
 selenium = "^4.8.0"
 webdriver-manager = "^3.8.5"
 schedule = "^1.1.0"
+pytest-html = "^3.2.0"
+pandas = "^1.5.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

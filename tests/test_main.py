@@ -5,6 +5,7 @@ import pandas as pd
 from click.testing import CliRunner
 from _pytest.logging import LogCaptureFixture
 from loguru import logger as log
+from pathlib import Path
 from newsfeedback.main import retrieve_config
 from newsfeedback.main import get_article_urls_trafilatura_pipeline, get_articles_trafilatura_pipeline, get_article_metadata_chain_trafilatura_pipeline
 from newsfeedback.main import get_article_urls_bs_pipeline, get_articles_bs_pipeline, get_article_metadata_chain_bs_pipeline
@@ -244,7 +245,7 @@ class TestFilterPipeline(object):
         driver.quit()
         not_expected = 0
         message = ("filter_urls(article_url_list) "
-                   "returned {0} filtered article URLs.".format(actual.shape[0]))
+                   "returned {0} filtered article URLs.".format(len(actual)))
         assert len(actual) != not_expected, message
 
 
@@ -320,7 +321,7 @@ class TestClickTrafilaturaPipeline(object):
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
         latest_file = max(list_of_files, key=os.path.getctime)
         df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
         message = ("The exported dataframe is empty.")                
@@ -339,7 +340,7 @@ class TestClickTrafilaturaPipeline(object):
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
         latest_file = max(list_of_files, key=os.path.getctime)
         df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
         message = ("The exported dataframe is not empty.")                
@@ -358,7 +359,7 @@ class TestClickTrafilaturaPipeline(object):
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
         latest_file = max(list_of_files, key=os.path.getctime)
         df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
         message = ("The exported dataframe is empty.")                
@@ -377,7 +378,7 @@ class TestClickTrafilaturaPipeline(object):
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
         latest_file = max(list_of_files, key=os.path.getctime)
         df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
         message = ("The exported dataframe is not empty.")                
@@ -398,7 +399,7 @@ class TestClickBeautifulSoupPipeline(object):
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
         latest_file = max(list_of_files, key=os.path.getctime)
         df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
         message = ("The exported dataframe is empty.")                
@@ -418,7 +419,7 @@ class TestClickBeautifulSoupPipeline(object):
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
         latest_file = max(list_of_files, key=os.path.getctime)
         df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
         message = ("The exported dataframe is empty.")                
@@ -438,7 +439,7 @@ class TestClickPurAboPipeline(object):
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
         latest_file = max(list_of_files, key=os.path.getctime)
         df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
         message = ("The exported dataframe is empty.")                
@@ -457,13 +458,14 @@ class TestClickPurAboPipeline(object):
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
         output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
+        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
         latest_file = max(list_of_files, key=os.path.getctime)
         df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
 
 class TestPipelineFromConfig(object):
+    '''
 
     def test_retrieve_config_metadata(self):
         """ Asserts that the retrieved metadata config file is the correct one, based on the (non-)existence of a 
@@ -494,8 +496,7 @@ class TestPipelineFromConfig(object):
             data = yaml.load(yamlfile, Loader=yaml.FullLoader)
         message = ("The retrieved file is not identical to the expected file.")
         assert actual == data, message       
-
-    '''    def test_add_homepage_url(self):
+   def test_add_homepage_url(self):
         """Asserts that the user is able to add a homepage of their choice to the homepage config. """
         homepage_url = "test_url"
         chosen_pipeline = "'2'"
@@ -533,56 +534,53 @@ class TestPipelineFromConfig(object):
 
     
     def test_pipeline_picker_trafilatura(self, tmp_path):
-        """ Asserts that that the Trafilatura pipeline is correctly chosne and executed
+        """ Asserts that that the Trafilatura pipeline is correctly chosen and executed
         from the website config. """
         runner = CliRunner()
-        homepage_url = "'https://www.spiegel.de/'"
-        output_folder = tmp_path / "newsfeedback"
+        homepage_url = "https://www.spiegel.de/"
+        output_folder = Path(tmp_path/"newsfeedback")
         output_folder.mkdir()
-        output_path = f"'{output_folder}'"
-        runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
+        runner.invoke(pipeline_picker, f"-u '{homepage_url}' -o '{output_folder}' \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
-        output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
-        latest_file = max(list_of_files, key=os.path.getctime)
-        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+        df_folder = Path(output_folder/homepage)
+        generated_file = list(df_folder.glob('*.csv'))
+        log.info(generated_file)
+        df_from_file = pd.read_csv(generated_file[0])
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
         
     def test_pipeline_picker_beautifulsoup(self, tmp_path):
-        """ Asserts that that the BeautifulSoup pipeline is correctly chosne and executed
+        """ Asserts that that the BeautifulSoup pipeline is correctly chosen and executed
         from the website config. """
         runner = CliRunner()
-        homepage_url = "'https://www.badische-zeitung.de/'"
-        output_folder = tmp_path / "newsfeedback"
+        homepage_url = "https://www.badische-zeitung.de/"
+        output_folder = Path(tmp_path/"newsfeedback")
         output_folder.mkdir()
-        output_path = f"'{output_folder}'"
-        runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
+        runner.invoke(pipeline_picker, f"-u '{homepage_url}' -o '{output_folder}' \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
-        output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
-        latest_file = max(list_of_files, key=os.path.getctime)
-        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+        df_folder = Path(output_folder/homepage)
+        generated_file = list(df_folder.glob('*.csv'))
+        log.info(generated_file)
+        df_from_file = pd.read_csv(generated_file[0])
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
     
     def test_pipeline_picker_purabo(self, tmp_path):
-        """ Asserts that that the Pur Abo pipeline is correctly chosne and executed
+        """ Asserts that that the Pur Abo pipeline is correctly chosen and executed
         from the website config. """
         runner = CliRunner()
-        homepage_url = "'https://www.zeit.de/'"
+        homepage_url = "https://www.zeit.de/"
         output_folder = tmp_path / "newsfeedback"
         output_folder.mkdir()
-        output_path = f"'{output_folder}'"
-        runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
+        runner.invoke(pipeline_picker, f"-u '{homepage_url}' -o '{output_folder}' \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
-        output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/*{homepage}.csv')
-        latest_file = max(list_of_files, key=os.path.getctime)
-        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+        df_folder = Path(output_folder/homepage)
+        generated_file = list(df_folder.glob('*.csv'))
+        log.info(generated_file)
+        df_from_file = pd.read_csv(generated_file[0])
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
         
@@ -592,28 +590,28 @@ class TestPipelineFromConfig(object):
         list_homepage_url = ['https://www.zeit.de/','https://www.spiegel.de/','https://www.badische-zeitung.de/','https://www.bild.de/','https://www.faz.net/','https://www.focus.de/','https://www.handelsblatt.com/','https://www.n-tv.de/','https://www.rnd.de/','https://www.rtl.de/','https://www.stern.de/','https://www.sueddeutsche.de/','https://www.t-online.de/','https://www.upday.com/de/','https://www.welt.de/','https://www.merkur.de/','https://www.tz.de/','https://www.fr.de/']
         runner = CliRunner()
         list_empty_df = []
-        output_folder = tmp_path / "newsfeedback"
+        output_folder = Path(tmp_path/"newsfeedback")
         output_folder.mkdir()
         for homepage_url in list_homepage_url:
-            homepage_name = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-            homepage_name = homepage_name.replace(".","") 
-            output_path = f"'{output_folder}'"
-            runner.invoke(pipeline_picker, f"-u {homepage_url} -o {output_path} \n")
-            output_path = output_path.replace("'", "")
-            list_of_files = glob.glob(f'{output_path}/*{homepage_name}.csv')
-            latest_file = max(list_of_files, key=os.path.getctime)
-            df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
+            homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
+            homepage = homepage.replace(".","") 
+            runner.invoke(pipeline_picker, f"-u '{homepage_url}' -o '{output_folder}' \n")
+            df_folder = Path(output_folder/homepage)
+            generated_file = list(df_folder.glob('*.csv'))
+            log.info(generated_file)
+            df_from_file = pd.read_csv(generated_file[0])
             if df_from_file.shape[0] == 0:
-                list_empty_df.append(latest_file)
-        message = (f"At least one exported dataframe is empty: {list_empty_df}")                
+                list_empty_df.append(generated_file[0])
+                log.info(f"This dataframe is empty: {df_from_file.head()}")
+        message = (f"At least one exported dataframe is empty: {list_empty_df}. ")                
         assert len(list_empty_df) == 0, message
 
     def test_pipeline_picker_not_in_config(self, caplog):
         """ Asserts that that the correct pipelines for a URL that is not in the config are chosen and executed
         from the website config. """
         runner = CliRunner()
-        homepage_url = "'https://www.smo-wiki.leibniz-hbi.de/'"
-        runner.invoke(pipeline_picker, f"-u {homepage_url} \n")
+        homepage_url = "https://www.smo-wiki.leibniz-hbi.de/"
+        runner.invoke(pipeline_picker, f"-u '{homepage_url}' \n")
         message = ("The given URL was already in the config file, despite being expected not to be.".format(caplog.text))                
         assert "ERROR" in caplog.text, message
 
