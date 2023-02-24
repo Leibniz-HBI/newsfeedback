@@ -29,13 +29,17 @@ def retrieve_config(type_config):
     if type_config == "metadata":
         if Path(path_user_metadata_config).exists():
             config_file = Path(path_user_metadata_config)
+            log.info(f"Using the user-generated {type_config} config.")
         else:
             config_file = Path(path_default_metadata_config)
+            log.info(f"Using the default {type_config} config.")
     elif type_config == "homepage":
         if Path(path_user_homepage_config).exists():
             config_file = Path(path_user_homepage_config)
+            log.info(f"Using the user-generated {type_config} config.")
         else:
             config_file = Path(path_default_homepage_config)
+            log.info(f"Using the default {type_config} config.")
     with config_file.open() as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
         return data
@@ -428,7 +432,7 @@ def get_pipeline_from_config(homepage_url, output_folder):
     else:
         log.error("Please check that the URL you have given matches the required structure (https://www.name.de/) "
                   "and has already been added to the config. Otherwise add it to the config via the CLI "
-                  "with 'newsfeedback add-homepage-url ")
+                  "with 'newsfeedback add-homepage-url'. Data may be coming from an unintended config (default/custom). ")
     
 @cli.command(help="Chooses and executes the pipeline saved in the config file.")
 @click.option('-u','--homepage-url',

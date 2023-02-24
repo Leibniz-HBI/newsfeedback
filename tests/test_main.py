@@ -534,7 +534,7 @@ class TestPipelineFromConfig(object):
 
     
     def test_pipeline_picker_trafilatura(self, tmp_path):
-        """ Asserts that that the Trafilatura pipeline is correctly chosne and executed
+        """ Asserts that that the Trafilatura pipeline is correctly chosen and executed
         from the website config. """
         runner = CliRunner()
         homepage_url = "https://www.spiegel.de/"
@@ -551,7 +551,7 @@ class TestPipelineFromConfig(object):
         assert df_from_file.shape[0] != 0, message
         
     def test_pipeline_picker_beautifulsoup(self, tmp_path):
-        """ Asserts that that the BeautifulSoup pipeline is correctly chosne and executed
+        """ Asserts that that the BeautifulSoup pipeline is correctly chosen and executed
         from the website config. """
         runner = CliRunner()
         homepage_url = "https://www.badische-zeitung.de/"
@@ -568,7 +568,7 @@ class TestPipelineFromConfig(object):
         assert df_from_file.shape[0] != 0, message
     
     def test_pipeline_picker_purabo(self, tmp_path):
-        """ Asserts that that the Pur Abo pipeline is correctly chosne and executed
+        """ Asserts that that the Pur Abo pipeline is correctly chosen and executed
         from the website config. """
         runner = CliRunner()
         homepage_url = "https://www.zeit.de/"
@@ -600,9 +600,10 @@ class TestPipelineFromConfig(object):
             generated_file = list(df_folder.glob('*.csv'))
             log.info(generated_file)
             df_from_file = pd.read_csv(generated_file[0])
-            if df_from_file.shape[0] == 0:
+            if df_from_file.shape[0] > 1:
                 list_empty_df.append(generated_file[0])
-        message = (f"At least one exported dataframe is empty: {list_empty_df}")                
+                log.info(f"This dataframe is empty: {df_from_file.head()}")
+        message = (f"At least one exported dataframe is empty: {list_empty_df}. ")                
         assert len(list_empty_df) == 0, message
 
     def test_pipeline_picker_not_in_config(self, caplog):
