@@ -28,7 +28,7 @@ jobs:
           pip install poetry
           poetry install --no-interaction
       - name: Test with pytest
-        run: poetry run pytest -k "TestPipelineFromConfig -all" --cov-report html:coverage-${{ matrix.python-version }}
+        run: poetry run pytest -k "TestPipelineFromConfig" --cov-report html:coverage-${{ matrix.python-version }}
       - name: Upload pytest test results
         uses: actions/upload-artifact@v3
         with:
