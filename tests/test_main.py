@@ -600,7 +600,7 @@ class TestPipelineFromConfig(object):
             generated_file = list(df_folder.glob('*.csv'))
             log.info(generated_file)
             df_from_file = pd.read_csv(generated_file[0])
-            if df_from_file.shape[0] > 1:
+            if df_from_file.shape[0] == 0:
                 list_empty_df.append(generated_file[0])
                 log.info(f"This dataframe is empty: {df_from_file.head()}")
         message = (f"At least one exported dataframe is empty: {list_empty_df}. ")                
