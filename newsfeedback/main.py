@@ -20,21 +20,22 @@ def cli():
 
 
 def retrieve_config(type_config):
-    main_folder = Path("newsfeedback")
-    path_user_metadata_config = "user_metadata_config.yaml"
-    path_default_metadata_config = main_folder/"defaults"/"default_metadata_config.yaml"
-    path_user_homepage_config = "user_homepage_config.yaml"
-    path_default_homepage_config = main_folder/"defaults"/"default_homepage_config.yaml"
+    directory = Path().resolve()
+    path_user_metadata_config = directory/"user_metadata_config.yaml"
+    path_default_metadata_config = directory/"newsfeedback"/"defaults"/"default_metadata_config.yaml"
+    path_user_homepage_config = directory/"user_homepage_config.yaml"
+    path_default_homepage_config = directory/"newsfeedback"/"defaults"/"default_homepage_config.yaml"
+
     if type_config == "metadata":
         if Path(path_user_metadata_config).exists():
-            config_file = path_user_metadata_config
+            config_file = Path(path_user_metadata_config)
         else:
-            config_file = path_default_metadata_config
+            config_file = Path(path_default_metadata_config)
     elif type_config == "homepage":
         if Path(path_user_homepage_config).exists():
-            config_file = path_user_homepage_config
+            config_file = Path(path_user_homepage_config)
         else:
-            config_file = path_default_homepage_config
+            config_file = Path(path_default_homepage_config)
     with config_file.open() as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
         return data
