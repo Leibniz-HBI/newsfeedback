@@ -538,12 +538,12 @@ class TestPipelineFromConfig(object):
         from the website config. """
         runner = CliRunner()
         homepage_url = "https://www.spiegel.de/"
-        output_folder = Path(tmp_path / "newsfeedback")
+        output_folder = Path(tmp_path/"newsfeedback")
         output_folder.mkdir()
         runner.invoke(pipeline_picker, f"-u '{homepage_url}' -o '{output_folder}' \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
-        df_folder = Path(f'{output_folder}/{homepage}')
+        df_folder = Path(output_folder/homepage)
         generated_file = list(df_folder.glob('*.csv'))
         log.info(generated_file)
         df_from_file = pd.read_csv(generated_file[0])
@@ -555,12 +555,12 @@ class TestPipelineFromConfig(object):
         from the website config. """
         runner = CliRunner()
         homepage_url = "https://www.badische-zeitung.de/"
-        output_folder = Path(tmp_path / "newsfeedback")
+        output_folder = Path(tmp_path/"newsfeedback")
         output_folder.mkdir()
         runner.invoke(pipeline_picker, f"-u '{homepage_url}' -o '{output_folder}' \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
-        df_folder = Path(f'{output_folder}/{homepage}')
+        df_folder = Path(output_folder/homepage)
         generated_file = list(df_folder.glob('*.csv'))
         log.info(generated_file)
         df_from_file = pd.read_csv(generated_file[0])
@@ -577,7 +577,7 @@ class TestPipelineFromConfig(object):
         runner.invoke(pipeline_picker, f"-u '{homepage_url}' -o '{output_folder}' \n")
         homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
         homepage = homepage.replace(".","") 
-        df_folder = Path(f'{output_folder}/{homepage}')
+        df_folder = Path(output_folder/homepage)
         generated_file = list(df_folder.glob('*.csv'))
         log.info(generated_file)
         df_from_file = pd.read_csv(generated_file[0])
@@ -590,13 +590,13 @@ class TestPipelineFromConfig(object):
         list_homepage_url = ['https://www.zeit.de/','https://www.spiegel.de/','https://www.badische-zeitung.de/','https://www.bild.de/','https://www.faz.net/','https://www.focus.de/','https://www.handelsblatt.com/','https://www.n-tv.de/','https://www.rnd.de/','https://www.rtl.de/','https://www.stern.de/','https://www.sueddeutsche.de/','https://www.t-online.de/','https://www.upday.com/de/','https://www.welt.de/','https://www.merkur.de/','https://www.tz.de/','https://www.fr.de/']
         runner = CliRunner()
         list_empty_df = []
-        output_folder = Path(tmp_path / "newsfeedback")
+        output_folder = Path(tmp_path/"newsfeedback")
         output_folder.mkdir()
         for homepage_url in list_homepage_url:
             homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
             homepage = homepage.replace(".","") 
             runner.invoke(pipeline_picker, f"-u '{homepage_url}' -o '{output_folder}' \n")
-            df_folder = Path(f'{output_folder}/{homepage}')
+            df_folder = Path(output_folder/homepage)
             generated_file = list(df_folder.glob('*.csv'))
             log.info(generated_file)
             df_from_file = pd.read_csv(generated_file[0])
