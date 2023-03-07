@@ -19,27 +19,46 @@ def cli():
     pass
 
 
-def retrieve_config(type_config):
+def retrieve_config(type_config, tmp_path=False):
     directory = Path().resolve()
     path_user_metadata_config = directory/"user_metadata_config.yaml"
     path_default_metadata_config = directory/"newsfeedback"/"defaults"/"default_metadata_config.yaml"
     path_user_homepage_config = directory/"user_homepage_config.yaml"
     path_default_homepage_config = directory/"newsfeedback"/"defaults"/"default_homepage_config.yaml"
+    if tmp_path:
+        path_tmp_metadata_config = tmp_path/"tmp_metadata_config.yaml"
+        path_tmp_homepage_config = tmp_path/"tmp_homepage_config.yaml"
 
     if type_config == "metadata":
         if Path(path_user_metadata_config).exists():
             config_file = Path(path_user_metadata_config)
-            log.info(f"Using the user-generated {type_config} config.")
+            log.info(f"Using the user-generated {type_config} config at {config_file}.")
         else:
             config_file = Path(path_default_metadata_config)
-            log.info(f"Using the default {type_config} config.")
+            log.info(f"Using the default {type_config} config at {config_file}.")
+    elif type_config == "metadata_default":
+        config_file = Path(path_default_metadata_config)
+        log.info(f"Using the default {type_config} config at {config_file}.")
+    elif type_config == "metadata_test":
+        config_file = Path(path_tmp_metadata_config)
+        config_file.write_bytes(path_default_metadata_config.read_bytes())
+        log.info(f"Using the default {type_config} config at {config_file}.")
+
     elif type_config == "homepage":
         if Path(path_user_homepage_config).exists():
             config_file = Path(path_user_homepage_config)
-            log.info(f"Using the user-generated {type_config} config.")
+            log.info(f"Using the user-generated {type_config} config at {config_file}.")
         else:
             config_file = Path(path_default_homepage_config)
-            log.info(f"Using the default {type_config} config.")
+            log.info(f"Using the default {type_config} config at {config_file}.")
+    elif type_config == "homepage_default":
+        config_file = Path(path_default_homepage_config)
+        log.info(f"Using the default {type_config} config at {config_file}.")
+    elif type_config == "homepage_test":
+        config_file = Path(path_tmp_homepage_config)
+        config_file.write_bytes(path_default_homepage_config.read_bytes())
+        log.info(f"Using the default {type_config} config at {config_file}.")
+  
     with config_file.open() as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
         return data
@@ -444,26 +463,84 @@ def pipeline_picker(homepage_url, output_folder):
 
     get_pipeline_from_config(homepage_url, output_folder)
 
-def write_in_config(homepage_url, chosen_pipeline, filter_option):
-    if chosen_pipeline == '1':
-        chosen_pipeline = 'trafilatura'
-    elif chosen_pipeline == '2':
-        chosen_pipeline = 'beautifulsoup'
-    elif chosen_pipeline == '3':
-        chosen_pipeline = 'purabo'
-    else:
-        chosen_pipeline = 'error'
+def copy_default_to_homepage_config(answer):
+    if answer == 'Y':
+        directory = Path().resolve()
+        path_user_homepage_config = directory/"user_homepage_config.yaml"
+        path_default_homepage_config = directory/"newsfeedback"/"defaults"/"default_homepage_config.yaml"
 
-    new_homepage = {
+        if Path(path_user_homepage_config).exists():
+            default_data = retrieve_config("homepage_default")
+            default_homepages = list(default_data.keys())
+            user_data = retrieve_config("homepage") # as the path exists, this will grab the user config file
+            user_homepages = list(user_data.keys())
+            new_homepages = [k for k in default_homepages if k not in user_homepages]
+
+            for homepage_url in new_homepages:
+                data = default_data.get(homepage_url) # {'pipeline': '...', 'filter': '...'}
+                new_homepage = {homepage_url: data} # {homepage_url: {'pipeline': '...', 'filter': '...'}}
+                with open(path_user_homepage_config, 'a+') as yamlfile:
+                    yaml.dump(new_homepage, yamlfile)
+
+            updated_data = retrieve_config("homepage")
+            updated_homepages = list(updated_data.keys())
+            log.info(f"Successfully appended {len(new_homepages)} homepage(s) to the user config, which now holds the "
+                     f"following URLs: {updated_homepages}")
+        else:
+            path_user_homepage_config.write_bytes(path_default_homepage_config.read_bytes())
+            with open(path_user_homepage_config, 'a+') as yamlfile:
+                data = yaml.safe_load(yamlfile)            
+                log.info(f"Successfully created a user config with the default homepages.")
+    else:
+        pass
+
+@cli.command(help="Clones the default homepage URLs to the user-generated config.")
+@click.option('-a', '--answer',
+              help='Asks you whether you want to copy the default homepage URLs to your new config.',
+              prompt='Do you want to copy the default URLs to your new config? Y|N')
+
+def default_to_homepage_config(answer):
+    copy_default_to_homepage_config(answer)
+
+def write_in_config(homepage_url, chosen_pipeline, filter_option, tmp_path=False):
+    if tmp_path:
+        tmp_path = Path(tmp_path)
+        path_tmp_user_homepage_config = tmp_path/"tmp_user_homepage_config.yaml"
+        log.info(f"Generating a new entry at {path_tmp_user_homepage_config}")
+        new_homepage = {
             homepage_url: {
-                'pipeline' : chosen_pipeline,
+                'pipeline': chosen_pipeline,
                 'filter' : filter_option.replace("'","")
             }
         }
-    
 
-    with open("user_homepage_config.yaml", 'a+') as yamlfile:
-        yaml.dump(new_homepage, yamlfile)
+        with open(path_tmp_user_homepage_config, 'a+') as yamlfile:
+            yaml.dump(new_homepage, yamlfile)
+
+        log.info(f"{new_homepage} has been added to {path_tmp_user_homepage_config}.")
+    else:
+        directory = Path().resolve()
+        path_user_homepage_config = directory/"user_homepage_config.yaml"
+
+        if chosen_pipeline == '1':
+            chosen_pipeline = 'trafilatura'
+        elif chosen_pipeline == '2':
+            chosen_pipeline = 'beautifulsoup'
+        elif chosen_pipeline == '3':
+            chosen_pipeline = 'purabo'
+        else:
+            chosen_pipeline = 'error'
+
+        new_homepage = {
+                homepage_url: {
+                    'pipeline' : chosen_pipeline,
+                    'filter' : filter_option.replace("'","")
+                }
+            }
+        with open(path_user_homepage_config, 'a+') as yamlfile:
+            yaml.dump(new_homepage, yamlfile)
+
+        log.info(f"{new_homepage} has been added to {path_user_homepage_config}.")      
 
 
 @cli.command(help="Adds a new homepage to the config file.")

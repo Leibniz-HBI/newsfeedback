@@ -465,74 +465,36 @@ class TestClickPurAboPipeline(object):
         assert df_from_file.shape[0] != 0, message
 
 class TestPipelineFromConfig(object):
-    '''
 
-    def test_retrieve_config_metadata(self):
-        """ Asserts that the retrieved metadata config file is the correct one, based on the (non-)existence of a 
-        user-generated config file. """
-        actual = retrieve_config('metadata')
-
-        if os.path.isfile("newsfeedback/user_metadata_config.yaml"):
-            config_file = "newsfeedback/user_metadata_config.yaml"
-        else:
-            config_file = "newsfeedback/default_metadata_config.yaml"
-    
-        with open(config_file, "r") as yamlfile:
-            data = yaml.load(yamlfile, Loader=yaml.FullLoader)
-        message = ("The retrieved file is not identical to the expected file.")
-        assert actual == data, message
-
-    def test_retrieve_config_homepage(self):
-        """ Asserts that the retrieved homepage config file is the correct one, based on the (non-)existence of a 
-        user-generated config file. """
-        actual = retrieve_config('homepage')
-
-        if os.path.isfile("newsfeedback/user_homepage_config.yaml"):
-            config_file = "newsfeedback/user_homepage_config.yaml"
-        else:
-            config_file = "newsfeedback/default_homepage_config.yaml"
-    
-        with open(config_file, "r") as yamlfile:
-            data = yaml.load(yamlfile, Loader=yaml.FullLoader)
-        message = ("The retrieved file is not identical to the expected file.")
-        assert actual == data, message       
-   def test_add_homepage_url(self):
-        """Asserts that the user is able to add a homepage of their choice to the homepage config. """
+    def test_retrieve_config(self, tmp_path):
+        """ Asserts that all available config files are retrieved and not empty. """
+        terms = ['metadata', 'homepage', 'metadata_test', 'homepage_test']
+        empty_files = []
+        for term in terms:
+            actual = retrieve_config(term, tmp_path)
+            if len(actual) == 0:
+                empty_files.append(term)
+        message = (f"At least one retrieved YAML file is empty: {empty_files}. Please check that a temporary default file was created.")
+        assert len(empty_files) == 0, message
+      
+    def test_add_homepage(self, tmp_path):
+        """ Asserts that a new homepage URL was added to the user config."""
         homepage_url = "test_url"
-        chosen_pipeline = "'2'"
-        filter_option = "'on'"
-        runner = CliRunner()
-        runner.invoke(add_homepage_url, f"-u '{homepage_url}' -p {chosen_pipeline} -f {filter_option}")
-    
-        with open("user_homepage_config.yaml", 'r') as yamlfile:
-            homepage_config = yaml.load(yamlfile, Loader=yaml.FullLoader)
-            data = homepage_config.get(homepage_url)
-            print(data)
-            if data:
-                actual = "Homepage was found in config."
-                updated_data = data.pop(homepage_url)
-                with open("user_homepage_config.yaml", "w") as yamlfile:
-                    yaml.dump(updated_data, yamlfile)    
-            else:
-                actual = "Homepage not found in config."
-        
-        with open("user_homepage_config.yaml", 'r+') as yamlfile:
-            homepage_config = yaml.load(yamlfile, Loader=yaml.FullLoader)
-            data = homepage_config.get(homepage_url)
-            if data:
-                actual = "Homepage found in config."
-                test_data_removed = homepage_config
-                del test_data_removed[homepage_url]
-                print(test_data_removed)
-                yaml.dump(test_data_removed, yamlfile)
-            else:
-                actual = "Homepage not found in config."
+        chosen_pipeline = "1"
+        filter_option = "on"
+        write_in_config(homepage_url, chosen_pipeline, filter_option, tmp_path)
+        path_tmp_user_homepage_config = tmp_path/"tmp_user_homepage_config.yaml"
+        try:
+            with open(path_tmp_user_homepage_config, 'r') as yamlfile:
+                data = yaml.safe_load(yamlfile)
+        except FileNotFoundError:
+            data = ""
+            log.error("The file was not found.")
+        message = ("URL was not added to the YAML file.")
+        assert len(data) > 0, message
 
-        message = ("Homepage was not added to the config.")
-        assert actual == "Homepage found in config.", message'''
-        
 
-    
+
     def test_pipeline_picker_trafilatura(self, tmp_path):
         """ Asserts that that the Trafilatura pipeline is correctly chosen and executed
         from the website config. """
