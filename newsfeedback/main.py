@@ -74,11 +74,11 @@ def get_article_urls_trafilatura_pipeline(homepage_url):
         log.error(f'{homepage_url}: No articles were found.')
     return article_url_list
 
-@cli.command(help='[TRAFILATURA PIPELINE] - Retrieves article URLs from homepage URL. Returns an article URL list.')
+'''@cli.command(help='[TRAFILATURA PIPELINE] - Retrieves article URLs from homepage URL. Returns an article URL list.')
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from. When using the BeautifulSoup pipeline, this can also be  HTML source code.')
 def get_articles_trafilatura_pipeline(homepage_url):
-    get_article_urls_trafilatura_pipeline(homepage_url)
+    get_article_urls_trafilatura_pipeline(homepage_url)'''
 
 def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
     metadata_config = retrieve_config("metadata")
@@ -153,11 +153,11 @@ def get_article_urls_bs_pipeline(homepage):
         log.error(f'{homepage_url}: No articles have been found. \r')
     return article_url_list
 
-@cli.command(help="[BEAUTIFULSOUP PIPELINE] - Retrieves article URLs from homepage URL. Returns a list of article URLs")
+'''@cli.command(help="[BEAUTIFULSOUP PIPELINE] - Retrieves article URLs from homepage URL. Returns a list of article URLs")
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from. When using the BeautifulSoup pipeline, this can also be  HTML source code.')
 def get_articles_bs_pipeline(homepage_url):
-    get_article_urls_bs_pipeline(homepage_url)
+    get_article_urls_bs_pipeline(homepage_url)'''
 
 def get_article_metadata_chain_bs_pipeline(article_url_list):
     metadata_config = retrieve_config("metadata")
@@ -171,8 +171,6 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
         else:
             downloaded = article
         if downloaded != None:
-            metadata_config = retrieve_config("metadata")
-            metadata_wanted = [k for k,v in metadata_config.items() if v == True]
             metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
             if metadata != None:
                 dict_keys = list(metadata.keys())
@@ -221,14 +219,14 @@ def accept_pur_abo_homepage(homepage_url, class_name):
         log.error(text)
     return text, driver
 
-@cli.command(help='Presses the consent button on the homepage of a website with a so-called "Pur Abo".')
+'''@cli.command(help='Presses the consent button on the homepage of a website with a so-called "Pur Abo".')
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from. When using the BeautifulSoup pipeline, this can also be  HTML source code.')
 @click.option('-c', '--class-name', default='sp_choice_type_11',
               help='This is the class name of the consent button. If no name is given, '
               'newsfeedback uses the class name used by ZEIT Online for their consent button.')
 def consent_button_homepage(homepage_url, class_name):
-    accept_pur_abo_homepage(homepage_url, class_name)
+    accept_pur_abo_homepage(homepage_url, class_name)'''
 
 def accept_pur_abo_article(article_url_list, class_name):
     options = webdriver.ChromeOptions()
@@ -381,15 +379,15 @@ def chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder):
     
     return df_path
 
-@cli.command(help="[TRAFILATURA PIPELINE] - Executes the complete trafilatura pipeline.")
+'''@cli.command(help="[TRAFILATURA PIPELINE] - Executes the complete trafilatura pipeline.")
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from.')
 @click.option('-f', '--filter-choice',
               help="Whether you want to filter results or not. Either 'on' or 'off'.")
 @click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+              help="Defaults to newsfeedback's output folder.")
 def trafilatura_pipeline(homepage_url, filter_choice, output_folder):
-    chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder)
+    chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder)'''
 
 def chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
     article_url_list = get_article_urls_bs_pipeline(homepage_url)
@@ -399,15 +397,15 @@ def chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
                   
     return df_path
 
-@cli.command(help="[BEAUTIFULSOUP PIPELINE] - Executes the complete beautifulsoup pipeline.")
+'''@cli.command(help="[BEAUTIFULSOUP PIPELINE] - Executes the complete beautifulsoup pipeline.")
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from.')
 @click.option('-f', '--filter-choice',
               help="Whether you want to filter results or not. Either 'on' or 'off'.")
 @click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+              help="Defaults to newsfeedback's output folder.")
 def beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
-    chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)
+    chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)'''
 
 def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_folder):
     (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
@@ -417,7 +415,7 @@ def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_fold
     (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
     df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
     export_dataframe(df, homepage_url, output_folder)
-
+'''
 @cli.command(help="[PURABO PIPELINE] - Executes the complete pur abo pipeline.")
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from.')
@@ -427,9 +425,9 @@ def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_fold
 @click.option('-f', '--filter-choice',
               help="Whether you want to filter results or not. Either 'on' or 'off'.")
 @click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+              help="Defaults to newsfeedback's output folder.")
 def purabo_pipeline(homepage_url, class_name, filter_choice, output_folder):
-    chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_folder)
+    chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_folder)'''
 
 ### CONFIG RELATED FUNCTIONS
 
@@ -449,7 +447,7 @@ def get_pipeline_from_config(homepage_url, output_folder):
         else:
             log.error('Please check the pipeline information given for this URL.')
     else:
-        log.error("Please check that the URL you have given matches the required structure (https://www.name.de/) "
+        log.error(f"Please check that the URL you have given ({homepage_url}) matches the required structure (https://www.name.de/) "
                   "and has already been added to the config. Otherwise add it to the config via the CLI "
                   "with 'newsfeedback add-homepage-url'. Data may be coming from an unintended config (default/custom). ")
     
@@ -457,10 +455,9 @@ def get_pipeline_from_config(homepage_url, output_folder):
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from.')
 @click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+              help="Defaults to newsfeedback's output folder.")
 
 def pipeline_picker(homepage_url, output_folder):
-
     get_pipeline_from_config(homepage_url, output_folder)
 
 def copy_default_to_homepage_config(answer):
@@ -499,7 +496,7 @@ def copy_default_to_homepage_config(answer):
               help='Asks you whether you want to copy the default homepage URLs to your new config.',
               prompt='Do you want to copy the default URLs to your new config? Y|N')
 
-def default_to_homepage_config(answer):
+def copy_homepage_config(answer):
     copy_default_to_homepage_config(answer)
 
 def write_in_config(homepage_url, chosen_pipeline, filter_option, tmp_path=False):
@@ -573,7 +570,7 @@ def initiate_data_collection(output_folder):
 @click.option('-t', '--hour', default='6',
               help='Run data extraction once every X hours. This is X, but defaults to 6.')
 @click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+              help="Defaults to newsfeedback's output folder.")
 def get_data(hour, output_folder):
     schedule.every(int(hour)).hours.do(initiate_data_collection, output_folder)
     while True:
