@@ -460,12 +460,47 @@ def get_pipeline_from_config(homepage_url, output_folder):
 def pipeline_picker(homepage_url, output_folder):
     get_pipeline_from_config(homepage_url, output_folder)
 
-def copy_default_to_homepage_config(answer):
-    if answer == 'Y':
-        directory = Path().resolve()
-        path_user_homepage_config = directory/"user_homepage_config.yaml"
-        path_default_homepage_config = directory/"newsfeedback"/"defaults"/"default_homepage_config.yaml"
+def copy_default_to_metadata_config(answer, tmp_path=False):
+    if answer != "Y" and answer != "testing_tmp_path":
+        pass
+    else:
+        if answer == 'Y':
+            directory = Path().resolve()
+            path_user_metadata_config = directory/"user_metadata_config.yaml"
+            path_default_metadata_config = directory/"newsfeedback"/"defaults"/"default_metadata_config.yaml"
+        else:
+            tmp_directory = Path(tmp_path)
+            directory = Path().resolve()
+            path_user_metadata_config = tmp_directory/"tmp_user_metadata_config.yaml"
+            path_default_metadata_config = directory/"newsfeedback"/"defaults"/"default_metadata_config.yaml"
 
+        if Path(path_user_metadata_config).exists():
+            log.error(f'You have already generated a user config file at {path_user_metadata_config}. '
+                    'Please update the settings manually within the file.')
+        else:               
+            path_user_metadata_config.write_bytes(path_default_metadata_config.read_bytes())
+            try:
+                with open(path_user_metadata_config, 'a+') as yamlfile:
+                    data = yaml.safe_load(yamlfile)     
+                    log.info(f"Successfully created a user config with the default metadata. Please adjust "
+                             f"settings manually at {path_user_metadata_config}, if so desired.")
+            except:
+                log.error('There was an unexpected error.')
+
+def copy_default_to_homepage_config(answer, tmp_path=False):
+    if answer != "Y" and answer != "testing_tmp_path":
+        pass
+    else:
+        if answer == 'Y':
+            directory = Path().resolve()
+            path_user_homepage_config = directory/"user_homepage_config.yaml"
+            path_default_homepage_config = directory/"newsfeedback"/"defaults"/"default_homepage_config.yaml"
+        else:
+            tmp_directory = Path(tmp_path)
+            directory = Path().resolve()
+            path_user_homepage_config = tmp_directory/"tmp_user_homepage_config.yaml"
+            path_default_homepage_config = directory/"newsfeedback"/"defaults"/"default_homepage_config.yaml"
+            
         if Path(path_user_homepage_config).exists():
             default_data = retrieve_config("homepage_default")
             default_homepages = list(default_data.keys())
@@ -485,21 +520,32 @@ def copy_default_to_homepage_config(answer):
                      f"following URLs: {updated_homepages}")
         else:
             path_user_homepage_config.write_bytes(path_default_homepage_config.read_bytes())
+            log.info(path_user_homepage_config)
             with open(path_user_homepage_config, 'a+') as yamlfile:
                 data = yaml.safe_load(yamlfile)            
                 log.info(f"Successfully created a user config with the default homepages.")
+
+@cli.command(help="Generates a new metadata or homepage config to allow custom settings.")
+@click.option('-c', '--choice',
+              help='Prompts the user to choose a type of config to generate.',
+              prompt='Choose the type of config you wish to generate '
+              '1. metadata OR 2. homepage '              )
+@click.option('-a', '--answer',
+              help='Confirmation (or rejection) of custom file generation.',
+              prompt="Do you want to generate this new config? Y|N")
+
+def generate_config(choice, answer):
+    if answer == "Y":
+        if choice == '1' or 'metadata':
+            copy_default_to_metadata_config(answer)
+        elif choice == '2' or 'homepage':
+            copy_default_to_homepage_config(answer)
+        else:
+            log.error('Please enter a viable answer (i.e. "1", "2", "metadata" or "homepage").')
     else:
         pass
 
-@cli.command(help="Clones the default homepage URLs to the user-generated config.")
-@click.option('-a', '--answer',
-              help='Asks you whether you want to copy the default homepage URLs to your new config.',
-              prompt='Do you want to copy the default URLs to your new config? Y|N')
-
-def copy_homepage_config(answer):
-    copy_default_to_homepage_config(answer)
-
-def write_in_config(homepage_url, chosen_pipeline, filter_option, tmp_path=False):
+def write_in_homepage_config(homepage_url, chosen_pipeline, filter_option, tmp_path=False):
     if tmp_path:
         tmp_path = Path(tmp_path)
         path_tmp_user_homepage_config = tmp_path/"tmp_user_homepage_config.yaml"
@@ -557,7 +603,7 @@ def write_in_config(homepage_url, chosen_pipeline, filter_option, tmp_path=False
               "but not for the trafilatura pipelines. It roughly filters out nonviable URLs "
               "retrieved in broader extraction processes.")
 def add_homepage_url(homepage_url, chosen_pipeline, filter_option):
-    write_in_config(homepage_url, chosen_pipeline, filter_option)
+    write_in_homepage_config(homepage_url, chosen_pipeline, filter_option)
 
 def initiate_data_collection(output_folder):
     homepage_config = retrieve_config('homepage')

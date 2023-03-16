@@ -12,7 +12,7 @@ from newsfeedback.main import get_article_urls_bs_pipeline, get_article_metadata
 from newsfeedback.main import accept_pur_abo_homepage, accept_pur_abo_article, get_pur_abo_article_urls_chain, get_pur_abo_article_metadata_chain
 from newsfeedback.main import filter_urls
 from newsfeedback.main import chained_trafilatura_pipeline,  chained_beautifulsoup_pipeline
-from newsfeedback.main import pipeline_picker, write_in_config
+from newsfeedback.main import pipeline_picker, write_in_homepage_config, copy_default_to_metadata_config, copy_default_to_homepage_config
 # from newsfeedback.main import get_articles_trafilatura_pipeline, get_articles_bs_pipeline, consent_button_homepage, beautifulsoup_pipeline, chained_purabo_pipeline, purabo_pipeline, trafilatura_pipeline,get_pipeline_from_config, add_homepage_url
 
 @pytest.fixture
@@ -250,6 +250,35 @@ class TestFilterPipeline(object):
 
 class TestPipelineFromConfig(object):
 
+
+    def test_copy_metadata_config(self, tmp_path):
+        """Asserts that default metadata is copied into a user-generated config."""
+        copy_default_to_metadata_config("testing_tmp_path", tmp_path)
+        path_tmp_user_metadata_config = tmp_path/"tmp_user_metadata_config.yaml"
+        try:
+            with open(path_tmp_user_metadata_config, 'r') as yamlfile:
+                data = yaml.safe_load(yamlfile)
+
+        except FileNotFoundError:
+            data = ""
+            log.error("The file was not found.")
+        message = ("The custom metadata config was not generated.")
+        assert len(data) > 0, message
+
+    def test_copy_homepage_config(self, tmp_path):
+        """Asserts that default homepage URLs are copied into a user-generated config."""
+        copy_default_to_homepage_config("testing_tmp_path", tmp_path)
+        path_tmp_user_homepage_config = tmp_path/"tmp_user_homepage_config.yaml"
+        try:
+            log.info(path_tmp_user_homepage_config)
+            with open(path_tmp_user_homepage_config, 'r') as yamlfile:
+                data = yaml.safe_load(yamlfile)
+        except FileNotFoundError:
+            data = ""
+            log.error("The file was not found.")
+        message = ("The custom homepage config was not generated.")
+        assert len(data) > 0, message
+
     def test_retrieve_config(self, tmp_path):
         """ Asserts that all available config files are retrieved and not empty. """
         terms = ['metadata', 'homepage', 'metadata_test', 'homepage_test']
@@ -266,7 +295,7 @@ class TestPipelineFromConfig(object):
         homepage_url = "test_url"
         chosen_pipeline = "1"
         filter_option = "on"
-        write_in_config(homepage_url, chosen_pipeline, filter_option, tmp_path)
+        write_in_homepage_config(homepage_url, chosen_pipeline, filter_option, tmp_path)
         path_tmp_user_homepage_config = tmp_path/"tmp_user_homepage_config.yaml"
         try:
             with open(path_tmp_user_homepage_config, 'r') as yamlfile:
