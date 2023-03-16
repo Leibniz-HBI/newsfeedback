@@ -19,27 +19,46 @@ def cli():
     pass
 
 
-def retrieve_config(type_config):
+def retrieve_config(type_config, tmp_path=False):
     directory = Path().resolve()
     path_user_metadata_config = directory/"user_metadata_config.yaml"
     path_default_metadata_config = directory/"newsfeedback"/"defaults"/"default_metadata_config.yaml"
     path_user_homepage_config = directory/"user_homepage_config.yaml"
     path_default_homepage_config = directory/"newsfeedback"/"defaults"/"default_homepage_config.yaml"
+    if tmp_path:
+        path_tmp_metadata_config = tmp_path/"tmp_metadata_config.yaml"
+        path_tmp_homepage_config = tmp_path/"tmp_homepage_config.yaml"
 
     if type_config == "metadata":
         if Path(path_user_metadata_config).exists():
             config_file = Path(path_user_metadata_config)
-            log.info(f"Using the user-generated {type_config} config.")
+            log.info(f"Using the user-generated {type_config} config at {config_file}.")
         else:
             config_file = Path(path_default_metadata_config)
-            log.info(f"Using the default {type_config} config.")
+            log.info(f"Using the default {type_config} config at {config_file}.")
+    elif type_config == "metadata_default":
+        config_file = Path(path_default_metadata_config)
+        log.info(f"Using the default {type_config} config at {config_file}.")
+    elif type_config == "metadata_test":
+        config_file = Path(path_tmp_metadata_config)
+        config_file.write_bytes(path_default_metadata_config.read_bytes())
+        log.info(f"Using the default {type_config} config at {config_file}.")
+
     elif type_config == "homepage":
         if Path(path_user_homepage_config).exists():
             config_file = Path(path_user_homepage_config)
-            log.info(f"Using the user-generated {type_config} config.")
+            log.info(f"Using the user-generated {type_config} config at {config_file}.")
         else:
             config_file = Path(path_default_homepage_config)
-            log.info(f"Using the default {type_config} config.")
+            log.info(f"Using the default {type_config} config at {config_file}.")
+    elif type_config == "homepage_default":
+        config_file = Path(path_default_homepage_config)
+        log.info(f"Using the default {type_config} config at {config_file}.")
+    elif type_config == "homepage_test":
+        config_file = Path(path_tmp_homepage_config)
+        config_file.write_bytes(path_default_homepage_config.read_bytes())
+        log.info(f"Using the default {type_config} config at {config_file}.")
+  
     with config_file.open() as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
         return data
@@ -55,11 +74,11 @@ def get_article_urls_trafilatura_pipeline(homepage_url):
         log.error(f'{homepage_url}: No articles were found.')
     return article_url_list
 
-@cli.command(help='[TRAFILATURA PIPELINE] - Retrieves article URLs from homepage URL. Returns an article URL list.')
+'''@cli.command(help='[TRAFILATURA PIPELINE] - Retrieves article URLs from homepage URL. Returns an article URL list.')
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from. When using the BeautifulSoup pipeline, this can also be  HTML source code.')
 def get_articles_trafilatura_pipeline(homepage_url):
-    get_article_urls_trafilatura_pipeline(homepage_url)
+    get_article_urls_trafilatura_pipeline(homepage_url)'''
 
 def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
     metadata_config = retrieve_config("metadata")
@@ -134,11 +153,11 @@ def get_article_urls_bs_pipeline(homepage):
         log.error(f'{homepage_url}: No articles have been found. \r')
     return article_url_list
 
-@cli.command(help="[BEAUTIFULSOUP PIPELINE] - Retrieves article URLs from homepage URL. Returns a list of article URLs")
+'''@cli.command(help="[BEAUTIFULSOUP PIPELINE] - Retrieves article URLs from homepage URL. Returns a list of article URLs")
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from. When using the BeautifulSoup pipeline, this can also be  HTML source code.')
 def get_articles_bs_pipeline(homepage_url):
-    get_article_urls_bs_pipeline(homepage_url)
+    get_article_urls_bs_pipeline(homepage_url)'''
 
 def get_article_metadata_chain_bs_pipeline(article_url_list):
     metadata_config = retrieve_config("metadata")
@@ -152,8 +171,6 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
         else:
             downloaded = article
         if downloaded != None:
-            metadata_config = retrieve_config("metadata")
-            metadata_wanted = [k for k,v in metadata_config.items() if v == True]
             metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
             if metadata != None:
                 dict_keys = list(metadata.keys())
@@ -202,14 +219,14 @@ def accept_pur_abo_homepage(homepage_url, class_name):
         log.error(text)
     return text, driver
 
-@cli.command(help='Presses the consent button on the homepage of a website with a so-called "Pur Abo".')
+'''@cli.command(help='Presses the consent button on the homepage of a website with a so-called "Pur Abo".')
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from. When using the BeautifulSoup pipeline, this can also be  HTML source code.')
 @click.option('-c', '--class-name', default='sp_choice_type_11',
               help='This is the class name of the consent button. If no name is given, '
               'newsfeedback uses the class name used by ZEIT Online for their consent button.')
 def consent_button_homepage(homepage_url, class_name):
-    accept_pur_abo_homepage(homepage_url, class_name)
+    accept_pur_abo_homepage(homepage_url, class_name)'''
 
 def accept_pur_abo_article(article_url_list, class_name):
     options = webdriver.ChromeOptions()
@@ -362,15 +379,15 @@ def chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder):
     
     return df_path
 
-@cli.command(help="[TRAFILATURA PIPELINE] - Executes the complete trafilatura pipeline.")
+'''@cli.command(help="[TRAFILATURA PIPELINE] - Executes the complete trafilatura pipeline.")
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from.')
 @click.option('-f', '--filter-choice',
               help="Whether you want to filter results or not. Either 'on' or 'off'.")
 @click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+              help="Defaults to newsfeedback's output folder.")
 def trafilatura_pipeline(homepage_url, filter_choice, output_folder):
-    chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder)
+    chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder)'''
 
 def chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
     article_url_list = get_article_urls_bs_pipeline(homepage_url)
@@ -380,15 +397,15 @@ def chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
                   
     return df_path
 
-@cli.command(help="[BEAUTIFULSOUP PIPELINE] - Executes the complete beautifulsoup pipeline.")
+'''@cli.command(help="[BEAUTIFULSOUP PIPELINE] - Executes the complete beautifulsoup pipeline.")
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from.')
 @click.option('-f', '--filter-choice',
               help="Whether you want to filter results or not. Either 'on' or 'off'.")
 @click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+              help="Defaults to newsfeedback's output folder.")
 def beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
-    chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)
+    chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)'''
 
 def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_folder):
     (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
@@ -398,7 +415,7 @@ def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_fold
     (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
     df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
     export_dataframe(df, homepage_url, output_folder)
-
+'''
 @cli.command(help="[PURABO PIPELINE] - Executes the complete pur abo pipeline.")
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from.')
@@ -408,9 +425,9 @@ def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_fold
 @click.option('-f', '--filter-choice',
               help="Whether you want to filter results or not. Either 'on' or 'off'.")
 @click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+              help="Defaults to newsfeedback's output folder.")
 def purabo_pipeline(homepage_url, class_name, filter_choice, output_folder):
-    chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_folder)
+    chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_folder)'''
 
 ### CONFIG RELATED FUNCTIONS
 
@@ -430,7 +447,7 @@ def get_pipeline_from_config(homepage_url, output_folder):
         else:
             log.error('Please check the pipeline information given for this URL.')
     else:
-        log.error("Please check that the URL you have given matches the required structure (https://www.name.de/) "
+        log.error(f"Please check that the URL you have given ({homepage_url}) matches the required structure (https://www.name.de/) "
                   "and has already been added to the config. Otherwise add it to the config via the CLI "
                   "with 'newsfeedback add-homepage-url'. Data may be coming from an unintended config (default/custom). ")
     
@@ -438,32 +455,135 @@ def get_pipeline_from_config(homepage_url, output_folder):
 @click.option('-u','--homepage-url',
               help='This is the URL you extract the article URLs from.')
 @click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+              help="Defaults to newsfeedback's output folder.")
 
 def pipeline_picker(homepage_url, output_folder):
-
     get_pipeline_from_config(homepage_url, output_folder)
 
-def write_in_config(homepage_url, chosen_pipeline, filter_option):
-    if chosen_pipeline == '1':
-        chosen_pipeline = 'trafilatura'
-    elif chosen_pipeline == '2':
-        chosen_pipeline = 'beautifulsoup'
-    elif chosen_pipeline == '3':
-        chosen_pipeline = 'purabo'
+def copy_default_to_metadata_config(answer, tmp_path=False):
+    if answer != "Y" and answer != "testing_tmp_path":
+        pass
     else:
-        chosen_pipeline = 'error'
+        if answer == 'Y':
+            directory = Path().resolve()
+            path_user_metadata_config = directory/"user_metadata_config.yaml"
+            path_default_metadata_config = directory/"newsfeedback"/"defaults"/"default_metadata_config.yaml"
+        else:
+            tmp_directory = Path(tmp_path)
+            directory = Path().resolve()
+            path_user_metadata_config = tmp_directory/"tmp_user_metadata_config.yaml"
+            path_default_metadata_config = directory/"newsfeedback"/"defaults"/"default_metadata_config.yaml"
 
-    new_homepage = {
+        if Path(path_user_metadata_config).exists():
+            log.error(f'You have already generated a user config file at {path_user_metadata_config}. '
+                    'Please update the settings manually within the file.')
+        else:               
+            path_user_metadata_config.write_bytes(path_default_metadata_config.read_bytes())
+            try:
+                with open(path_user_metadata_config, 'a+') as yamlfile:
+                    data = yaml.safe_load(yamlfile)     
+                    log.info(f"Successfully created a user config with the default metadata. Please adjust "
+                             f"settings manually at {path_user_metadata_config}, if so desired.")
+            except:
+                log.error('There was an unexpected error.')
+
+def copy_default_to_homepage_config(answer, tmp_path=False):
+    if answer != "Y" and answer != "testing_tmp_path":
+        pass
+    else:
+        if answer == 'Y':
+            directory = Path().resolve()
+            path_user_homepage_config = directory/"user_homepage_config.yaml"
+            path_default_homepage_config = directory/"newsfeedback"/"defaults"/"default_homepage_config.yaml"
+        else:
+            tmp_directory = Path(tmp_path)
+            directory = Path().resolve()
+            path_user_homepage_config = tmp_directory/"tmp_user_homepage_config.yaml"
+            path_default_homepage_config = directory/"newsfeedback"/"defaults"/"default_homepage_config.yaml"
+            
+        if Path(path_user_homepage_config).exists():
+            default_data = retrieve_config("homepage_default")
+            default_homepages = list(default_data.keys())
+            user_data = retrieve_config("homepage") # as the path exists, this will grab the user config file
+            user_homepages = list(user_data.keys())
+            new_homepages = [k for k in default_homepages if k not in user_homepages]
+
+            for homepage_url in new_homepages:
+                data = default_data.get(homepage_url) # {'pipeline': '...', 'filter': '...'}
+                new_homepage = {homepage_url: data} # {homepage_url: {'pipeline': '...', 'filter': '...'}}
+                with open(path_user_homepage_config, 'a+') as yamlfile:
+                    yaml.dump(new_homepage, yamlfile)
+
+            updated_data = retrieve_config("homepage")
+            updated_homepages = list(updated_data.keys())
+            log.info(f"Successfully appended {len(new_homepages)} homepage(s) to the user config, which now holds the "
+                     f"following URLs: {updated_homepages}")
+        else:
+            path_user_homepage_config.write_bytes(path_default_homepage_config.read_bytes())
+            log.info(path_user_homepage_config)
+            with open(path_user_homepage_config, 'a+') as yamlfile:
+                data = yaml.safe_load(yamlfile)            
+                log.info(f"Successfully created a user config with the default homepages.")
+
+@cli.command(help="Generates a new metadata or homepage config to allow custom settings.")
+@click.option('-c', '--choice',
+              help='Prompts the user to choose a type of config to generate.',
+              prompt='Choose the type of config you wish to generate '
+              '1. metadata OR 2. homepage '              )
+@click.option('-a', '--answer',
+              help='Confirmation (or rejection) of custom file generation.',
+              prompt="Do you want to generate this new config? Y|N")
+
+def generate_config(choice, answer):
+    if answer == "Y":
+        if choice == '1' or 'metadata':
+            copy_default_to_metadata_config(answer)
+        elif choice == '2' or 'homepage':
+            copy_default_to_homepage_config(answer)
+        else:
+            log.error('Please enter a viable answer (i.e. "1", "2", "metadata" or "homepage").')
+    else:
+        pass
+
+def write_in_homepage_config(homepage_url, chosen_pipeline, filter_option, tmp_path=False):
+    if tmp_path:
+        tmp_path = Path(tmp_path)
+        path_tmp_user_homepage_config = tmp_path/"tmp_user_homepage_config.yaml"
+        log.info(f"Generating a new entry at {path_tmp_user_homepage_config}")
+        new_homepage = {
             homepage_url: {
-                'pipeline' : chosen_pipeline,
+                'pipeline': chosen_pipeline,
                 'filter' : filter_option.replace("'","")
             }
         }
-    
 
-    with open("user_homepage_config.yaml", 'a+') as yamlfile:
-        yaml.dump(new_homepage, yamlfile)
+        with open(path_tmp_user_homepage_config, 'a+') as yamlfile:
+            yaml.dump(new_homepage, yamlfile)
+
+        log.info(f"{new_homepage} has been added to {path_tmp_user_homepage_config}.")
+    else:
+        directory = Path().resolve()
+        path_user_homepage_config = directory/"user_homepage_config.yaml"
+
+        if chosen_pipeline == '1':
+            chosen_pipeline = 'trafilatura'
+        elif chosen_pipeline == '2':
+            chosen_pipeline = 'beautifulsoup'
+        elif chosen_pipeline == '3':
+            chosen_pipeline = 'purabo'
+        else:
+            chosen_pipeline = 'error'
+
+        new_homepage = {
+                homepage_url: {
+                    'pipeline' : chosen_pipeline,
+                    'filter' : filter_option.replace("'","")
+                }
+            }
+        with open(path_user_homepage_config, 'a+') as yamlfile:
+            yaml.dump(new_homepage, yamlfile)
+
+        log.info(f"{new_homepage} has been added to {path_user_homepage_config}.")      
 
 
 @cli.command(help="Adds a new homepage to the config file.")
@@ -483,7 +603,7 @@ def write_in_config(homepage_url, chosen_pipeline, filter_option):
               "but not for the trafilatura pipelines. It roughly filters out nonviable URLs "
               "retrieved in broader extraction processes.")
 def add_homepage_url(homepage_url, chosen_pipeline, filter_option):
-    write_in_config(homepage_url, chosen_pipeline, filter_option)
+    write_in_homepage_config(homepage_url, chosen_pipeline, filter_option)
 
 def initiate_data_collection(output_folder):
     homepage_config = retrieve_config('homepage')
@@ -496,7 +616,7 @@ def initiate_data_collection(output_folder):
 @click.option('-t', '--hour', default='6',
               help='Run data extraction once every X hours. This is X, but defaults to 6.')
 @click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="The folder in which your exported dataframe is stored. Defaults to newsfeedback's output folder.")
+              help="Defaults to newsfeedback's output folder.")
 def get_data(hour, output_folder):
     schedule.every(int(hour)).hours.do(initiate_data_collection, output_folder)
     while True:

@@ -69,4 +69,5 @@
 'https://www.fr.de/':
   pipeline: 'beautifulsoup'
   filter: 'on'
+
   
