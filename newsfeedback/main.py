@@ -101,7 +101,20 @@ def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
             metadata.update(datetime_column)
         else:
             metadata = []
-            #log.error(f'{article_url}: No metadata was found.')
+        if len(metadata) != 0:
+            for k,v in metadata.items():
+                        if k == 'text':
+                            v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
+                            v = f'"{v_new}"'
+                            k_v_new ={k:v}
+                            metadata.update(k_v_new)
+                        elif k == 'comments':
+                            v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
+                            v = f'"{v_new}"'
+                            k_v_new ={k:v}
+                            metadata.update(k_v_new)
+                        else:
+                            pass        
         article_list.append(metadata)
     try:
         df = pd.DataFrame(article_list, columns = metadata_wanted)
@@ -171,7 +184,7 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
         else:
             downloaded = article
         if downloaded != None:
-            metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
+            metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True, include_comments=True)
             if metadata != None:
                 dict_keys = list(metadata.keys())
                 dict_keys_to_pop = [key for key in dict_keys if key not in metadata_wanted]
@@ -185,10 +198,22 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
                 metadata.update(datetime_column)
             else:
                 metadata = {}
-                #log.error(f'{article}: No metadata was found.')
         else:  
             metadata = {}
-            #log.error(f'{article}: No metadata was found.')
+        if len(metadata) != 0:
+            for k,v in metadata.items():
+                        if k == 'text':
+                            v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
+                            v = f'"{v_new}"'
+                            k_v_new ={k:v}
+                            metadata.update(k_v_new)
+                        elif k == 'comments':
+                            v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
+                            v = f'"{v_new}"'
+                            k_v_new ={k:v}
+                            metadata.update(k_v_new)
+                        else:
+                            pass
         article_list.append(metadata)
     df = pd.DataFrame(article_list, columns = metadata_wanted)
     if df.shape[0] != 0:
@@ -323,6 +348,19 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
                 metadata = {}
                 #log.error(f'No metadata was found.')
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
+                for k,v in metadata.items():
+                    if k == 'text':
+                        v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
+                        v = f'"{v_new}"'
+                        k_v_new ={k:v}
+                        metadata.update(k_v_new)
+                    elif k == 'comments':
+                        v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
+                        v = f'"{v_new}"'
+                        k_v_new ={k:v}
+                        metadata.update(k_v_new)
+                    else:
+                        pass
                 article_list.append(metadata)
     if len(article_list) != 0:
         log.info(f'{homepage_url}: {len(article_list)} articles with metadata have been found.\r')
@@ -618,6 +656,7 @@ def initiate_data_collection(output_folder):
 @click.option('-o', '--output-folder', default='newsfeedback/output',
               help="Defaults to newsfeedback's output folder.")
 def get_data(hour, output_folder):
+    initiate_data_collection(output_folder)
     schedule.every(int(hour)).hours.do(initiate_data_collection, output_folder)
     while True:
         schedule.run_pending()
