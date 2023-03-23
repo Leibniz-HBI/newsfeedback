@@ -24,6 +24,10 @@ Tool for extracting and saving news article metadata at regular intervals. It ut
 3. If satisfied, proceed to run `newsfeedback get-data`, adding `-t [INTEGER]` to specify every `-t` newsfeedback is to grab data. 
 <p>Note: This defaults to every 6 hours and extracts data from <b>all</b> default homepage URLs in the config. If you wish to only extract data from one URL, add it to a custom config with `newsfeedback add-homepage-url` and then re-run Step 3.
 
+## 💻 Runnings newsfeedback on a server
+
+If you want to run newsfeedback on a dedicated server, please make sure that you have Chrome installed on said server. Otherwise, you may be met with a [Chrome binary error](https://github.com/SergeyPirogov/webdriver_manager/issues/372) when using the Pur Abo pipeline.
+
 ## 🗂 Commands
 
 `newsfeedback --help` 
