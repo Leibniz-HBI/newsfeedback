@@ -397,7 +397,8 @@ def export_dataframe(df, homepage_url, output_folder):
     df_name = df_name.replace(".","") 
     timestr = time.strftime(r"%Y%m%d-%H%M")
     output_folder = Path(output_folder)
-    output_subfolder = (output_folder/df_name)
+    Path(output_folder).mkdir(exist_ok=True)
+    output_subfolder = Path(output_folder/df_name)
     Path(output_subfolder).mkdir(exist_ok=True)
     try:
         df_path = Path(f"{output_subfolder}/{timestr}-{df_name}.csv")
