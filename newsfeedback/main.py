@@ -231,6 +231,7 @@ def accept_pur_abo_homepage(homepage_url, class_name):
     options.add_argument('--log-level=3')
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+    driver.delete_all_cookies()
     driver.get(homepage_url)
     try:
         WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it(0))
@@ -259,6 +260,7 @@ def accept_pur_abo_article(article_url_list, class_name):
     options.add_argument('--log-level=3')
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+    driver.delete_all_cookies()
     driver.get(article_url_list[0])
     try:
         WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it(0))
