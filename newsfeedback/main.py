@@ -324,9 +324,9 @@ def get_pur_abo_article_urls_chain(text, driver):
             log.info(f'{homepage_url}: {len(article_url_list)} links have been found.\r')
         else:
             log.error(f'{homepage_url}: No articles have been found. \r')
-        driver.quit()
     except:
         log.error('Unexpected error occured.')
+    driver.quit()
     return article_url_list
 
 def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
