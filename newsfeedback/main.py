@@ -233,15 +233,24 @@ def accept_pur_abo_homepage(homepage_url, class_name):
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
     driver.delete_all_cookies()
     driver.get(homepage_url)
-    try:
-        WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it(0))
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
-        driver.switch_to.default_content()
-        WebDriverWait(driver, 10).until(EC.title_is('ZEIT ONLINE | Nachrichten, News, Hintergründe und Debatten'))
+    title = driver.title
+    if title == "ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.":
+        try:
+            WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it(0))
+            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
+            driver.switch_to.default_content()
+            WebDriverWait(driver, 10).until(EC.title_is('ZEIT ONLINE | Nachrichten, News, Hintergründe und Debatten'))
+            text = driver.page_source
+            log.info("The consent button was successfully clicked.")
+        except TimeoutException:
+            text = "Element could not be found, connection timed out."
+            log.error(text)
+    elif title == "ZEIT ONLINE | Nachrichten, News, Hintergründe und Debatten":
         text = driver.page_source
-        log.info("The consent button was successfully clicked.")
-    except TimeoutException:
-        text = 'Element could not be found, connection timed out.'
+        log.info("The consent button was already clicked.")
+    else:
+        current_url = driver.current_url
+        text = f"Please check that you are on the correct page. The current URL is {current_url} and the title is '{title}'."
         log.error(text)
     return text, driver
 
@@ -262,16 +271,21 @@ def accept_pur_abo_article(article_url_list, class_name):
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
     driver.delete_all_cookies()
     driver.get(article_url_list[0])
-    try:
-        WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it(0))
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
-        driver.switch_to.default_content()
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]'))) 
+    title = driver.title
+    if title == "ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.":
+        try:
+            WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it(0))
+            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
+            driver.switch_to.default_content()
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]'))) 
+            text = driver.page_source
+            log.info("The consent button was successfully clicked.")
+        except TimeoutException:
+            text = 'Element could not be found, connection timed out.' # text variable probably superfluous
+            log.error(text)
+    else:
         text = driver.page_source
-        log.info("The consent button was successfully clicked.")
-    except TimeoutException:
-        text = 'Element could not be found, connection timed out.' # text variable probably superfluous
-        log.error(text)
+        log.info("The consent button was already clicked.")
     return text, driver
 
 
