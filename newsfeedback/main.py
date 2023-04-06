@@ -236,15 +236,15 @@ def accept_pur_abo_homepage(homepage_url, class_name):
     title = driver.title
     if title == "ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.":
         try:
-            WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it(0))
-            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
+            WebDriverWait(driver, 20).until(EC.frame_to_be_available_and_switch_to_it(0))
+            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
             driver.switch_to.default_content()
-            WebDriverWait(driver, 10).until(EC.title_is('ZEIT ONLINE | Nachrichten, News, Hintergründe und Debatten'))
+            WebDriverWait(driver, 20).until(EC.title_is('ZEIT ONLINE | Nachrichten, News, Hintergründe und Debatten'))
             text = driver.page_source
             log.info("The consent button was successfully clicked.")
         except TimeoutException:
             text = "Element could not be found, connection timed out."
-            log.error(text)
+            log.error(f"{homepage_url}: {text}")
     elif title == "ZEIT ONLINE | Nachrichten, News, Hintergründe und Debatten":
         text = driver.page_source
         log.info("The consent button was already clicked.")
@@ -274,10 +274,10 @@ def accept_pur_abo_article(article_url_list, class_name):
     title = driver.title
     if title == "ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.":
         try:
-            WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it(0))
-            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
+            WebDriverWait(driver, 30).until(EC.frame_to_be_available_and_switch_to_it(0))
+            WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
             driver.switch_to.default_content()
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]'))) 
+            WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]'))) 
             text = driver.page_source
             log.info("The consent button was successfully clicked.")
         except TimeoutException:
