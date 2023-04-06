@@ -282,7 +282,7 @@ def accept_pur_abo_article(article_url_list, class_name):
             log.info("The consent button was successfully clicked.")
         except TimeoutException:
             text = 'Element could not be found, connection timed out.' # text variable probably superfluous
-            log.error(text)
+            log.error(f"{article_url_list[0]}: {text}")
     else:
         text = driver.page_source
         log.info("The consent button was already clicked.")
@@ -336,7 +336,12 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
     metadata_wanted.append('datetime')
     for article_url in article_url_list:
         if article_url != None:
-            driver.get(article_url)
+            driver.set_page_load_timeout(30)
+            try:
+                driver.get(article_url)
+            except TimeoutException:
+                driver.implicitly_wait(60)
+                driver.get(article_url)
             article_page_source = driver.page_source
             if len(article_page_source) < 300:
                 downloaded = trafilatura.fetch_url(article_page_source)
@@ -356,13 +361,10 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
                     datetime = time.strftime(r"%Y%m%d-%H%M")
                     datetime_column = {'datetime':datetime}
                     metadata.update(datetime_column)
-                    #log.info(f'Metadata was found.')  
                 else:
                     metadata = {}
-                    #log.error(f'No metadata was found.')
             else:  
                 metadata = {}
-                #log.error(f'No metadata was found.')
             if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
                 for k,v in metadata.items():
                     if k == 'text':
