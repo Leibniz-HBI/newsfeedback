@@ -471,6 +471,7 @@ def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_fold
     driver.quit()
     (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
     df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
+    driver.quit()
     export_dataframe(df, homepage_url, output_folder)
 '''
 @cli.command(help="[PURABO PIPELINE] - Executes the complete pur abo pipeline.")
