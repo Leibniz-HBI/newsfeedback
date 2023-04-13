@@ -349,8 +349,8 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
                     driver.get(article_url)
                     wait_duration += 1
                     if wait_duration == 20:
-                        status = "timeout"
                         log.error(f"{article_url}: The webpage has timed out after {wait_duration ** 2} seconds.")
+                        status = "timeout"
             article_page_source = driver.page_source
             if len(article_page_source) < 300:
                 downloaded = trafilatura.fetch_url(article_page_source)
