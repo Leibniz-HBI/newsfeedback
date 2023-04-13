@@ -344,10 +344,10 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
                     log.info(f"TimeoutException occurred, retrying after {x ** 2} seconds.")
                     driver.implicitly_wait(x ** 2)
                     driver.get(article_url)
-                    if driver.page_source != None:
-                        break
                     if x == 20 and driver.page_source == None:
                         log.error("TimeoutException occurred and could not be resolved.")
+                if driver.page_source != None:
+                    break
             article_page_source = driver.page_source
             if len(article_page_source) < 300:
                 downloaded = trafilatura.fetch_url(article_page_source)
