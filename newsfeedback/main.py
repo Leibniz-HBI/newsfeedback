@@ -336,19 +336,24 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
     metadata_wanted.append('datetime')
     for article_url in article_url_list:
         if article_url != None:
-            driver.set_page_load_timeout(30)
-            try:
-                driver.get(article_url)
-            except TimeoutException:
-                driver.implicitly_wait(60)
-                driver.get(article_url)
+            driver.set_page_load_timeout(60)
+            for x in range(5,20):
+                try:
+                    driver.get(article_url)
+                except TimeoutException:
+                    log.info(f"TimeoutException occurred, retrying after {x ** 2} seconds.")
+                    driver.implicitly_wait(x ** 2)
+                    driver.get(article_url)
+                    if x == 20 and driver.page_source == None:
+                        log.error("TimeoutException occurred and could not be resolved.")
+                if driver.page_source != None:
+                    break
             article_page_source = driver.page_source
             if len(article_page_source) < 300:
                 downloaded = trafilatura.fetch_url(article_page_source)
             else:
                 downloaded = article_page_source
             if downloaded != None:
-                
                 metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
                 if metadata != None:
                     dict_keys = list(metadata.keys())
@@ -549,7 +554,7 @@ def copy_default_to_homepage_config(answer, tmp_path=False):
     if answer != "Y" and answer != "testing_tmp_path":
         pass
     else:
-        if answer == 'Y':
+        if answer == 'Y' or answer == 'y':
             directory = Path().resolve()
             path_user_homepage_config = directory/"user_homepage_config.yaml"
             path_default_homepage_config = directory/"newsfeedback"/"defaults"/"default_homepage_config.yaml"
@@ -593,10 +598,10 @@ def copy_default_to_homepage_config(answer, tmp_path=False):
               prompt="Do you want to generate this new config? Y|N")
 
 def generate_config(choice, answer):
-    if answer == "Y":
-        if choice == '1' or 'metadata':
+    if answer == "Y" or answer == "y":
+        if choice == '1' or choice == 'metadata':
             copy_default_to_metadata_config(answer)
-        elif choice == '2' or 'homepage':
+        elif choice == '2' or choice == 'homepage':
             copy_default_to_homepage_config(answer)
         else:
             log.error('Please enter a viable answer (i.e. "1", "2", "metadata" or "homepage").')
