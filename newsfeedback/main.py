@@ -336,7 +336,7 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
     metadata_wanted.append('datetime')
     for article_url in article_url_list:
         if article_url != None:
-            driver.set_page_load_timeout(60)
+            driver.set_page_load_timeout(120)
             for x in range(5,20):
                 try:
                     driver.get(article_url)
@@ -346,6 +346,7 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
                     driver.get(article_url)
                     if x == 20 and driver.page_source == None:
                         log.error("TimeoutException occurred and could not be resolved.")
+                        continue
                 if driver.page_source != None:
                     break
             article_page_source = driver.page_source
