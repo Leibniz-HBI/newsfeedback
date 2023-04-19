@@ -2,7 +2,6 @@
 
 <img align="left" src="https://user-images.githubusercontent.com/102800020/225603245-b1dfdda6-bbe2-4c13-aec2-0a10ff26e231.png" width="150"> 
 
-
 Tool for extracting and saving news article metadata at regular intervals. It utilizes [Beautiful Soup 4](https://www.crummy.com/software/BeautifulSoup/), [trafilatura ](https://github.com/adbar/trafilatura) and [Selenium](https://www.selenium.dev/) to extract and, if desired, filter article metadata across three different pipelines depending on a site's structure.
 <p>
 <b>Note: 🏗 This tool and its README are currently under construction 🏗</b>
@@ -10,16 +9,14 @@ Tool for extracting and saving news article metadata at regular intervals. It ut
 
 ## 💻 Installation and Usage
 
-1. Install `poetry` if you don't have it: `pipx install poetry`.
-2. Clone this repo, go into the repo's folder.
-3. Install the dependencies with `poetry install` and spawn a shell in your new virtual environment with `poetry shell`.
-3. To run tests type `pytest`, to try newsfeedback run `newsfeedback --help`.   
+If you use `pipx`, you can install with `pipx install newsfeedback`. Alternatively, you can install via `pip`: `pip install newsfeedback`.
+There you go! You can now run `newsfeedback --help` and the commands outlined below. To run tests type `pytest`.   
 
 ## 📦 Getting Started - Default
 
 "Out the box", newsfeedback retrieves a list of homepages to be extracted from the [default homepage config file](https://github.com/Leibniz-HBI/newsfeedback/blob/main/newsfeedback/defaults/default_homepage_config.yaml). It is recommended to proceed with extracting metadata with these unchanged settings once to get acquainted with the functionalities of the tool. 
 
-1. After spawning `poetry shell`, proceed to run `newsfeedback pipeline-picker -u '[LINK OF YOUR CHOICE]'`. This URL **must** be in the config file. 
+1. After installing `newsfeedback`, run `newsfeedback pipeline-picker -u '[LINK OF YOUR CHOICE]'`. This URL **must** be in the config file. 
 2. Check the output folder (default: newsfeedback/output) for the csv - this will be the structure of your exported CSVs.
 3. If satisfied, proceed to run `newsfeedback get-data`, adding `-t [INTEGER]` to specify every `-t` newsfeedback is to grab data. 
 <p>Note: This defaults to every 6 hours and extracts data from <b>all</b> default homepage URLs in the config. If you wish to only extract data from one URL, add it to a custom config with `newsfeedback add-homepage-url` and then re-run Step 3.
