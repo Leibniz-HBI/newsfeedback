@@ -250,8 +250,9 @@ def accept_pur_abo_homepage(homepage_url, class_name):
         log.info("The consent button was already clicked.")
     else:
         current_url = driver.current_url
-        text = f"Please check that you are on the correct page. The current URL is {current_url} and the title is '{title}'."
-        log.error(text)
+        message = f"Please check that you are on the correct page. The current URL is {current_url} and the title is '{title}'."
+        log.error(message)
+        text = None
     return text, driver
 
 '''@cli.command(help='Presses the consent button on the homepage of a website with a so-called "Pur Abo".')
@@ -270,7 +271,11 @@ def accept_pur_abo_article(article_url_list, class_name):
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
     driver.delete_all_cookies()
-    driver.get(article_url_list[0])
+    if len(article_url_list) != 0:
+        driver.get(article_url_list[0])
+    else:
+        homepage_url = "https://www.zeit.de/"
+        driver.get(homepage_url)
     title = driver.title
     if title == "ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.":
         try:
@@ -281,7 +286,7 @@ def accept_pur_abo_article(article_url_list, class_name):
             text = driver.page_source
             log.info("The consent button was successfully clicked.")
         except TimeoutException:
-            text = 'Element could not be found, connection timed out.' # text variable probably superfluous
+            text = 'Element could not be found, connection timed out.' 
             log.error(f"{article_url_list[0]}: {text}")
     else:
         text = driver.page_source
@@ -346,6 +351,7 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
                     driver.get(article_url)
                     if x == 20 and driver.page_source == None:
                         log.error("TimeoutException occurred and could not be resolved.")
+                        ### send mail here
                         continue
                 if driver.page_source != None:
                     break
@@ -397,12 +403,15 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
 ### Filter-related functions
 
 def filter_urls(article_url_list, filter_choice):
+    ### later this url blacklist will be modular, same with the regex parameters
+    url_specific_blacklist = ['https://www.zeit.de/exklusive-zeit-artikel']
+    year = time.strftime(r"%Y")
+    regex_parameters = fr"((/(\w+-)+\w+-\w+(\.html)?)|/-/\w+|{year})" # adjust regex so that /index end is kicked
     if filter_choice == 'on':
         filtered_url_list = []
-        year = time.strftime(r"%Y")
         for article in article_url_list:
-            viable_article = re.search(fr"((/(\w+-)+\w+-\w+(\.html)?)|/-/\w+|{year})", article) # adjust regex so that /index end is kicked
-            if viable_article:
+            viable_article = re.search(regex_parameters, article) 
+            if viable_article and article not in url_specific_blacklist:
                 filtered_url_list.append(article)
         removed = (len(article_url_list)-len(filtered_url_list))
         if removed != 0:
