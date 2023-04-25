@@ -6,6 +6,7 @@ from click.testing import CliRunner
 from _pytest.logging import LogCaptureFixture
 from loguru import logger as log
 from pathlib import Path
+from unittest import mock
 from newsfeedback.main import retrieve_config
 from newsfeedback.main import get_article_urls_trafilatura_pipeline, get_article_metadata_chain_trafilatura_pipeline
 from newsfeedback.main import get_article_urls_bs_pipeline, get_article_metadata_chain_bs_pipeline
@@ -13,6 +14,9 @@ from newsfeedback.main import accept_pur_abo_homepage, accept_pur_abo_article, g
 from newsfeedback.main import filter_urls
 from newsfeedback.main import chained_trafilatura_pipeline,  chained_beautifulsoup_pipeline
 from newsfeedback.main import pipeline_picker, write_in_homepage_config, copy_default_to_metadata_config, copy_default_to_homepage_config
+from selenium.common.exceptions import TimeoutException
+from selenium import webdriver
+
 # from newsfeedback.main import get_articles_trafilatura_pipeline, get_articles_bs_pipeline, consent_button_homepage, beautifulsoup_pipeline, chained_purabo_pipeline, purabo_pipeline, trafilatura_pipeline,get_pipeline_from_config, add_homepage_url
 
 @pytest.fixture
@@ -150,6 +154,18 @@ class TestPurAboPipeline(object):
                    "{0}".format(actual[0]))
         assert actual[0] == error_message, message   
     
+    '''    def test_accept_pur_abo_timeout(self):
+            homepage_url = "https://www.zeit.de/"
+            class_name = "sp_choice_type_11"
+            with mock.patch('selenium.webdriver.chrome.webdriver.get', side_effect=Exception(TimeoutException)):
+                actual = accept_pur_abo_homepage(homepage_url, class_name)
+                driver = actual[1]
+                driver.quit()
+            error_message = 'Element could not be found, connection timed out.'
+            message = ("accept_pur_abo_homepage(homepage_url, class_name) "
+                    "returned {0}, which is an undesired error message.".format(actual[0]))
+            assert actual[0] != error_message, message  '''
+
     def test_accept_pur_abo_article_consent_button(self):
         """ Asserts that the Pur Abo / consent button defined by class name in class_name 
         can be clicked when a list of articles is given."""
@@ -162,6 +178,19 @@ class TestPurAboPipeline(object):
         message = ("accept_pur_abo_article(article_url_list, class_name) "
                   "returned {0}, which is an undesired error message.".format(actual[0]))
         assert actual[0] != error_message, message 
+
+    '''    def test_accept_pur_abo_article_consent_button_timeout(self):
+            """"""
+            article_url_list = ["https://www.zeit.de/zett/politik/2022-12/mihran-dabag-voelkermord-jesiden-bundestag-kriegsgewalt", "https://www.zeit.de/gesellschaft/zeitgeschehen/2023-01/illerkirchberg-mord-buergerdialog-ece-s-vater"]
+            class_name = "sp_choice_type_11" # full class names: 'message-component message-button no-children focusable sp_choice_type_11'
+            with mock.patch('selenium.webdriver.get', side_effect=Exception(TimeoutException)):
+                actual = accept_pur_abo_article(article_url_list, class_name)
+                driver = actual[1]
+                driver.quit()
+            error_message = 'Element could not be found, connection timed out.'
+            message = ("accept_pur_abo_article(article_url_list, class_name) "
+                    "returned {0}, which is an undesired error message.".format(actual[0]))
+            assert actual[0] != error_message, message '''
 
     def test_get_pur_abo_article_urls(self):
         """ Asserts that a list of articles is extracted from ZEIT Online via the 
@@ -191,6 +220,26 @@ class TestPurAboPipeline(object):
         message = ("get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list) "
                    "returned {0} articles with metadata.".format(actual.shape[0]))
         assert actual.shape[0] != not_expected, message
+
+    '''    def test_get_pur_abo_article_urls_and_metadata_timeout(self):
+            """  """
+            homepage_url = "https://www.zeit.de/"
+            class_name = "sp_choice_type_11"
+            (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
+            article_url_list = get_pur_abo_article_urls_chain(text, driver)
+            returned_article_url_list = filter_urls(article_url_list, filter_choice='off')
+            driver.quit()
+            (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
+            with mock.patch('selenium.webdriver.get', side_effect=Exception(TimeoutException)):
+                actual = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
+            not_expected = 0
+            message = ("get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list) "
+                    "returned {0} articles with metadata.".format(actual.shape[0]))
+            assert actual.shape[0] != not_expected, message'''
+
+    
+
+
 
 
 class TestFilterPipeline(object):
