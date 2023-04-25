@@ -347,7 +347,10 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
         if article_url != None:
             driver.set_page_load_timeout(120)
             options = webdriver.ChromeOptions()
-            options.page_load_strategy = 'eager'
+            if driver.title != "ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.":
+                options.page_load_strategy = 'eager'
+            else: 
+                options.page_load_strategy = 'normal'
             for x in range(5,20):
                 try:
                     driver.get(article_url)
