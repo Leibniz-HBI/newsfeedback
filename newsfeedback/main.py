@@ -284,11 +284,14 @@ def accept_pur_abo_article(article_url_list, class_name):
             WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
             driver.switch_to.default_content()
             # WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]')))
-            WebDriverWait(driver, 30).until(EC.none_of(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "title='ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.'"))))
+            WebDriverWait(driver, 30).until(EC.any_of(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]')),
+                EC.none_of(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "title='ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.'"))
+                    )
+                    ))
             text = driver.page_source
             log.info("The consent button was successfully clicked.")
-            
         except TimeoutException:
             text = 'Element could not be found, connection timed out.' 
             log.error(f"{article_url_list[0]}: {text}")
@@ -345,12 +348,12 @@ def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
     metadata_wanted.append('datetime')
     for article_url in article_url_list:
         if article_url != None:
-            driver.set_page_load_timeout(120)
-            options = webdriver.ChromeOptions()
-            if driver.title != "ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.":
-                options.page_load_strategy = 'eager'
-            else: 
-                options.page_load_strategy = 'normal'
+            WebDriverWait(driver, 30).until(EC.any_of(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]')),
+                EC.none_of(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "title='ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.'"))
+                    )
+                    ))
             for x in range(5,20):
                 try:
                     driver.get(article_url)
