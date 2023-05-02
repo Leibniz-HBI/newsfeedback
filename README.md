@@ -23,7 +23,8 @@ There you go! You can now run `newsfeedback --help` and the commands outlined be
 
 ## 💻 Running newsfeedback on a server
 
-If you want to run newsfeedback on a dedicated server, please make sure that you have Chrome installed on said server. Otherwise, you may be met with a [Chrome binary error](https://github.com/SergeyPirogov/webdriver_manager/issues/372) when using the Pur Abo pipeline.
+If you want to run newsfeedback on a dedicated server, please make sure that you have Chrome installed on said server. Otherwise, you may be met with a [Chrome binary error](https://github.com/SergeyPirogov/webdriver_manager/issues/372) when using the Pur Abo pipeline. 
+If you are met with regularly occurring timeouts while using the Pur Abo pipeline, your server may not have enough memory. It seems that at least 2GB are needed.
 
 ## 🗂 Commands
 
