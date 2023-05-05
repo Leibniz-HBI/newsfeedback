@@ -229,6 +229,7 @@ def accept_pur_abo_homepage(homepage_url, class_name):
     options = webdriver.ChromeOptions()
     options.add_argument('headless') # comment out if you want to see what's happening
     options.add_argument('--log-level=3')
+    options.add_argument('--lang=en')
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
     driver.delete_all_cookies()
@@ -268,6 +269,7 @@ def accept_pur_abo_article(article_url_list, class_name):
     options = webdriver.ChromeOptions()
     options.add_argument('headless') # comment out if you want to see what's happening
     options.add_argument('--log-level=3')
+    options.add_argument('--lang=en')
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
     driver.delete_all_cookies()
@@ -281,6 +283,7 @@ def accept_pur_abo_article(article_url_list, class_name):
     if title == "ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.":
         try:
             WebDriverWait(driver, 20).until(EC.frame_to_be_available_and_switch_to_it(0))
+            driver.implicitly_wait(10)
             WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
             driver.switch_to.default_content()
             # WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]')))
@@ -494,11 +497,36 @@ def beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
 def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_folder):
     (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
     article_url_list = get_pur_abo_article_urls_chain(text, driver)
+    if len(article_url_list) < 2:
+        for x in range(5,20):
+            driver.quit()
+            log.info(f"Retrying in {x ** 2} seconds.")
+            time.sleep(x ** 2)
+            (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
+            article_url_list = get_pur_abo_article_urls_chain(text, driver)
+            if x == 20 and len(article_url_list) == 0:
+                log.error(f"{homepage_url}: Due to an error accepting the first pur abo button, no articles with metadata were found, despite sufficient wait.")
+            if len(article_url_list) != 0:
+                break
     returned_article_url_list = filter_urls(article_url_list, filter_choice)
     driver.quit()
     (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
     df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
-    driver.quit()
+    if df.shape[0] <= 2:
+        for x in range(5,20):
+            driver.quit()
+            log.info(f"Retrying in {x ** 2} seconds.")
+            time.sleep(x ** 2)
+            (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
+            df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
+            if x == 20 and df.shape[0] == 0:
+                driver.quit()
+                log.error(f"{homepage_url}: Due to an error accepting the second pur abo button, no articles with metadata were found, despite sufficient wait.")
+            if df.shape[0] != 0:
+                driver.quit()
+                break
+    else:
+        driver.quit()
     export_dataframe(df, homepage_url, output_folder)
 '''
 @cli.command(help="[PURABO PIPELINE] - Executes the complete pur abo pipeline.")
@@ -613,10 +641,10 @@ def copy_default_to_homepage_config(answer, tmp_path=False):
 @cli.command(help="Generates a new metadata or homepage config to allow custom settings.")
 @click.option('-c', '--choice',
               help='Prompts the user to choose a type of config to generate.',
-              prompt='Choose the type of config you wish to generate '
+              prompt='[1/2] Choose the type of config you wish to generate '
               '1. metadata OR 2. homepage '              )
 @click.option('-a', '--answer',
-              help='Confirmation (or rejection) of custom file generation.',
+              help='[2/2] Confirmation (or rejection) of custom file generation.',
               prompt="Do you want to generate this new config? Y|N")
 
 def generate_config(choice, answer):
@@ -677,13 +705,13 @@ def write_in_homepage_config(homepage_url, chosen_pipeline, filter_option, tmp_p
               help="The homepage URL you wish to add (i.e. https://www.spiegel.de/) to the config file. "
               "Please follow the example URL structure to reduce the potential for duplicates. ")
 @click.option('-p', '--chosen-pipeline',
-              prompt="Pick one of the available pipelines: 1 - trafilatura, 2 - beautifulsoup, 3 - purabo ",
+              prompt="[1/2] Pick one of the available pipelines: 1 - trafilatura, 2 - beautifulsoup, 3 - purabo ",
               help="The pipeline through which your article URLs and metadata are extracted. They are named for "
               "the packages and libraries primarily used in extraction. \n [trafilatura] has a higher error rate but "
               "no need for extra filtering. [beautifulsoup] works for all webpages, but requires further filtering. "
               "If a website has a so-called Pur Abo (i.e. ZEIT online), the [purabo] is the only viable option.")
 @click.option('-f', '--filter-option',
-              prompt="Decide if you want filtering. Type 'on' or 'off'",
+              prompt="[2/2] Decide if you want filtering. Type 'on' or 'off'",
               help="Filtering is recommended for the beautifulsoup and purabo pipelines, "
               "but not for the trafilatura pipelines. It roughly filters out nonviable URLs "
               "retrieved in broader extraction processes.")
