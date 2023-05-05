@@ -505,16 +505,28 @@ def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_fold
             (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
             article_url_list = get_pur_abo_article_urls_chain(text, driver)
             if x == 20 and len(article_url_list) == 0:
-                log.error(f"{homepage_url}: No articles with metadata were found, despite sufficient wait.")
-            if len != 0:
+                log.error(f"{homepage_url}: Due to an error accepting the first pur abo button, no articles with metadata were found, despite sufficient wait.")
+            if len(article_url_list) != 0:
                 break
     returned_article_url_list = filter_urls(article_url_list, filter_choice)
     driver.quit()
     (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
     df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
-    driver.quit()
-    
-    
+    if df.shape[0] <= 2:
+        for x in range(5,20):
+            driver.quit()
+            log.info(f"Retrying in {x ** 2} seconds.")
+            time.sleep(x ** 2)
+            (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
+            df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
+            if x == 20 and df.shape[0] == 0:
+                driver.quit()
+                log.error(f"{homepage_url}: Due to an error accepting the second pur abo button, no articles with metadata were found, despite sufficient wait.")
+            if df.shape[0] != 0:
+                driver.quit()
+                break
+    else:
+        driver.quit()
     export_dataframe(df, homepage_url, output_folder)
 '''
 @cli.command(help="[PURABO PIPELINE] - Executes the complete pur abo pipeline.")
