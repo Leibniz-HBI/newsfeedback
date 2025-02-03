@@ -10,7 +10,6 @@ from unittest import mock
 from newsfeedback.main import retrieve_config
 from newsfeedback.main import get_article_urls_trafilatura_pipeline, get_article_metadata_chain_trafilatura_pipeline
 from newsfeedback.main import get_article_urls_bs_pipeline, get_article_metadata_chain_bs_pipeline
-from newsfeedback.main import accept_pur_abo_homepage, accept_pur_abo_article, get_pur_abo_article_urls_chain, get_pur_abo_article_metadata_chain
 from newsfeedback.main import filter_urls
 from newsfeedback.main import chained_trafilatura_pipeline,  chained_beautifulsoup_pipeline
 from newsfeedback.main import pipeline_picker, write_in_homepage_config, copy_default_to_metadata_config, copy_default_to_homepage_config
@@ -29,7 +28,20 @@ class TestTrafilaturaPipeline(object):
     def test_get_article_urls_trafilatura_pipeline_goodurl(self):
         """ Asserts that a list of articles is extracted from a valid URL via the 
         Trafilatura pipeline. """
-        homepage_url = "https://www.spiegel.de/"
+        #homepage_url = "https://www.spiegel.de/"
+        homepage_url = "https://www.faz.net/"
+        actual = get_article_urls_trafilatura_pipeline(homepage_url)
+        not_expected = 0
+        message = ("get_article_urls_trafilatura_pipeline(homepage_url) "
+                   "returned {0} articles.".format(len(actual)))
+        assert len(actual) != not_expected, message
+    
+    def test_get_article_urls_trafilatura_pipeline_zeit(self):
+        """ Asserts that a list of articles is extracted from ZEIT Online via the 
+        Trafilatura pipeline. Previously, this site had needed a pipeline of its own (Pur Abo pipeline).
+        Should this test pass, no separate pipeline is needed for ZEIT Online."""
+        #homepage_url = "https://www.spiegel.de/"
+        homepage_url = "https://www.zeit.de/"
         actual = get_article_urls_trafilatura_pipeline(homepage_url)
         not_expected = 0
         message = ("get_article_urls_trafilatura_pipeline(homepage_url) "
@@ -49,7 +61,8 @@ class TestTrafilaturaPipeline(object):
     def test_get_urls_and_metadatatrafilatura_pipeline_goodurl(self):
         """ Asserts that a list of articles and the corresponding metadata
         are extracted from a valid URL via the Trafilatura pipeline. """
-        article_url_list = ["https://www.spiegel.de/panorama/bildung/lehrermangel-grundschule-fuehrt-vier-tage-woche-ein-a-fe57dfef-2078-4db2-8609-ac77697f7a18", "https://www.spiegel.de/wirtschaft/unternehmen/ford-will-2300-jobs-in-koeln-und-aachen-streichen-a-097df534-d74d-4092-8600-a4492ed1198d"]
+        #article_url_list = ["https://www.spiegel.de/panorama/bildung/lehrermangel-grundschule-fuehrt-vier-tage-woche-ein-a-fe57dfef-2078-4db2-8609-ac77697f7a18", "https://www.spiegel.de/wirtschaft/unternehmen/ford-will-2300-jobs-in-koeln-und-aachen-streichen-a-097df534-d74d-4092-8600-a4492ed1198d"]
+        article_url_list = ["https://www.faz.net/aktuell/feuilleton/debatten/groenland-als-ein-daenischer-populist-die-insel-an-die-usa-verkaufen-wollte-110256121.html", "https://www.faz.net/aktuell/feuilleton/buecher/autoren/philip-roths-roman-our-gang-krieg-um-groenland-110256113.html"]
         actual = get_article_metadata_chain_trafilatura_pipeline(article_url_list)
         not_expected = 0
         message = ("get_article_metadata_chain_trafilatura_pipeline(article_url_list) "
@@ -70,7 +83,8 @@ class TestTrafilaturaPipeline(object):
     def test_trafilatura_pipeline_goodurl(self, tmp_path):
         """ Asserts that the entire Trafilatura pipeline works with the data provided by a valid URL.
         The resulting dataframe is exported into a temporary directory. """
-        homepage_url = "https://www.spiegel.de/"
+        #homepage_url = "https://www.spiegel.de/"
+        homepage_url = "https://www.faz.net/"
         output_folder = tmp_path / "newsfeedback"
         output_folder.mkdir()
         filter_choice = 'off'
@@ -126,121 +140,6 @@ class TestBeautifulSoupPipeline(object):
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message  
 
-class TestPurAboPipeline(object):
-    def test_accept_pur_abo_consent_button(self):
-        """ Asserts that the Pur Abo / consent button defined by class name in class_name 
-        can be clicked when the website homepage is given. """
-        homepage_url = "https://www.zeit.de/"
-        class_name = "sp_choice_type_11" # full class names: 'message-component message-button no-children focusable sp_choice_type_11'
-        actual = accept_pur_abo_homepage(homepage_url, class_name)
-        driver = actual[1]
-        driver.quit()
-        error_message = 'Element could not be found, connection timed out.'
-        message = ("accept_pur_abo_homepage(homepage_url, class_name) "
-                  "returned {0}, which is an undesired error message.".format(actual[0]))
-        assert actual[0] != error_message, message    
-        
-    def test_accept_pur_abo_subscription_button(self):
-        """ Asserts that, should a different error than the Pur Abo / consent button be clicked, 
-        an error is returned. """
-        homepage_url = "https://www.zeit.de/"
-        class_name = "js-forward-link-purabo" # full class names: 'option__button option__button--pur js-forward-link-purabo'
-        actual = accept_pur_abo_homepage(homepage_url, class_name)
-        driver = actual[1]
-        driver.quit()
-        error_message = 'Element could not be found, connection timed out.'
-        message = ("accept_pur_abo_homepage(homepage_url, class_name) did not return "
-                   "the desired error message, but instead"
-                   "{0}".format(actual[0]))
-        assert actual[0] == error_message, message   
-    
-    '''    def test_accept_pur_abo_timeout(self):
-            homepage_url = "https://www.zeit.de/"
-            class_name = "sp_choice_type_11"
-            with mock.patch('selenium.webdriver.chrome.webdriver.get', side_effect=Exception(TimeoutException)):
-                actual = accept_pur_abo_homepage(homepage_url, class_name)
-                driver = actual[1]
-                driver.quit()
-            error_message = 'Element could not be found, connection timed out.'
-            message = ("accept_pur_abo_homepage(homepage_url, class_name) "
-                    "returned {0}, which is an undesired error message.".format(actual[0]))
-            assert actual[0] != error_message, message  '''
-
-    def test_accept_pur_abo_article_consent_button(self):
-        """ Asserts that the Pur Abo / consent button defined by class name in class_name 
-        can be clicked when a list of articles is given."""
-        article_url_list = ["https://www.zeit.de/zett/politik/2022-12/mihran-dabag-voelkermord-jesiden-bundestag-kriegsgewalt", "https://www.zeit.de/gesellschaft/zeitgeschehen/2023-01/illerkirchberg-mord-buergerdialog-ece-s-vater"]
-        class_name = "sp_choice_type_11" # full class names: 'message-component message-button no-children focusable sp_choice_type_11'
-        actual = accept_pur_abo_article(article_url_list, class_name)
-        driver = actual[1]
-        driver.quit()
-        error_message = 'Element could not be found, connection timed out.'
-        message = ("accept_pur_abo_article(article_url_list, class_name) "
-                  "returned {0}, which is an undesired error message.".format(actual[0]))
-        assert actual[0] != error_message, message 
-
-    '''    def test_accept_pur_abo_article_consent_button_timeout(self):
-            """"""
-            article_url_list = ["https://www.zeit.de/zett/politik/2022-12/mihran-dabag-voelkermord-jesiden-bundestag-kriegsgewalt", "https://www.zeit.de/gesellschaft/zeitgeschehen/2023-01/illerkirchberg-mord-buergerdialog-ece-s-vater"]
-            class_name = "sp_choice_type_11" # full class names: 'message-component message-button no-children focusable sp_choice_type_11'
-            with mock.patch('selenium.webdriver.get', side_effect=Exception(TimeoutException)):
-                actual = accept_pur_abo_article(article_url_list, class_name)
-                driver = actual[1]
-                driver.quit()
-            error_message = 'Element could not be found, connection timed out.'
-            message = ("accept_pur_abo_article(article_url_list, class_name) "
-                    "returned {0}, which is an undesired error message.".format(actual[0]))
-            assert actual[0] != error_message, message '''
-
-    def test_get_pur_abo_article_urls(self):
-        """ Asserts that a list of articles is extracted from ZEIT Online via the 
-        Pur Abo pipeline. """
-        homepage_url = "https://www.zeit.de/"
-        class_name = "sp_choice_type_11"
-        (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
-        actual = get_pur_abo_article_urls_chain(text, driver)
-        driver.quit()
-        not_expected = 0
-        message = ("get_pur_abo_article_urls_chain(text, driver) "
-                   "returned {0} article URLs.".format(len(actual)))
-        assert len(actual) != not_expected, message
-
-    def test_get_pur_abo_article_urls_and_metadata(self):
-        """ Asserts that a list of articles and the corresponding metadata
-        are extracted from ZEIT Online via the Pur Abo pipeline. """
-        homepage_url = "https://www.zeit.de/"
-        class_name = "sp_choice_type_11"
-        (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
-        article_url_list = get_pur_abo_article_urls_chain(text, driver)
-        returned_article_url_list = filter_urls(article_url_list, filter_choice='off')
-        driver.quit()
-        (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
-        actual = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
-        not_expected = 0
-        message = ("get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list) "
-                   "returned {0} articles with metadata.".format(actual.shape[0]))
-        assert actual.shape[0] != not_expected, message
-
-    '''    def test_get_pur_abo_article_urls_and_metadata_timeout(self):
-            """  """
-            homepage_url = "https://www.zeit.de/"
-            class_name = "sp_choice_type_11"
-            (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
-            article_url_list = get_pur_abo_article_urls_chain(text, driver)
-            returned_article_url_list = filter_urls(article_url_list, filter_choice='off')
-            driver.quit()
-            (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
-            with mock.patch('selenium.webdriver.get', side_effect=Exception(TimeoutException)):
-                actual = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
-            not_expected = 0
-            message = ("get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list) "
-                    "returned {0} articles with metadata.".format(actual.shape[0]))
-            assert actual.shape[0] != not_expected, message'''
-
-    
-
-
-
 
 class TestFilterPipeline(object):
     ### Not sure if the first two make sense, as the trafilatura pipeline pipeline already 
@@ -249,7 +148,8 @@ class TestFilterPipeline(object):
     def test_filter_article_urls_trafilatura_pipeline_goodurl(self):
         """ Asserts that a list of filtered articles is extracted from 
         a valid URL via the Trafilatura pipeline. """
-        homepage_url = "https://www.spiegel.de/"
+        #homepage_url = "https://www.spiegel.de/"
+        homepage_url = "https://www.faz.net/"
         filter_choice = 'on'
         article_url_list = get_article_urls_trafilatura_pipeline(homepage_url)
         actual = filter_urls(article_url_list, filter_choice)
@@ -278,20 +178,6 @@ class TestFilterPipeline(object):
         article_url_list = get_article_urls_bs_pipeline(homepage_url)
         actual = filter_urls(article_url_list, filter_choice)
         not_expected = 0 
-        message = ("filter_urls(article_url_list) "
-                   "returned {0} filtered article URLs.".format(len(actual)))
-        assert len(actual) != not_expected, message
-
-    def test_filter_article_urls_purabo_pipeline(self):
-        """ Asserts that a list of filtered articles is extracted from
-        ZEIT Online via the Pur Abo pipeline. """
-        homepage_url = "https://www.zeit.de/"
-        class_name = "sp_choice_type_11"
-        (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
-        article_url_list = get_pur_abo_article_urls_chain(text, driver)
-        actual = filter_urls(article_url_list, filter_choice='on')
-        driver.quit()
-        not_expected = 0
         message = ("filter_urls(article_url_list) "
                    "returned {0} filtered article URLs.".format(len(actual)))
         assert len(actual) != not_expected, message
@@ -359,7 +245,8 @@ class TestPipelineFromConfig(object):
         """ Asserts that that the Trafilatura pipeline is correctly chosen and executed
         from the website config. """
         runner = CliRunner()
-        homepage_url = "https://www.spiegel.de/"
+        #homepage_url = "https://www.spiegel.de/"
+        homepage_url = "https://www.faz.net/"
         output_folder = Path(tmp_path/"newsfeedback")
         output_folder.mkdir()
         runner.invoke(pipeline_picker, f"-u '{homepage_url}' -o '{output_folder}' \n")
@@ -388,24 +275,7 @@ class TestPipelineFromConfig(object):
         df_from_file = pd.read_csv(generated_file[0])
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
-    
-    def test_pipeline_picker_purabo(self, tmp_path):
-        """ Asserts that that the Pur Abo pipeline is correctly chosen and executed
-        from the website config. """
-        runner = CliRunner()
-        homepage_url = "https://www.zeit.de/"
-        output_folder = tmp_path / "newsfeedback"
-        output_folder.mkdir()
-        runner.invoke(pipeline_picker, f"-u '{homepage_url}' -o '{output_folder}' \n")
-        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-        homepage = homepage.replace(".","") 
-        df_folder = Path(output_folder/homepage)
-        generated_file = list(df_folder.glob('*.csv'))
-        log.info(generated_file)
-        df_from_file = pd.read_csv(generated_file[0])
-        message = ("The exported dataframe is empty.")                
-        assert df_from_file.shape[0] != 0, message
-        
+
     def test_pipeline_picker_all(self, tmp_path):
         """ Asserts that that the correct pipelines for the given URLs (all in the config) are chosen and executed
         from the website config. Also throws an error if a homepage that isn't in the config is in the list."""
@@ -435,214 +305,3 @@ class TestPipelineFromConfig(object):
         runner.invoke(pipeline_picker, f"-u '{homepage_url}' \n")
         message = ("The given URL was already in the config file, despite being expected not to be.".format(caplog.text))                
         assert "ERROR" in caplog.text, message
-
-    '''
-class TestClickTrafilaturaPipeline(object):
-    def test_click_get_articles_trafilatura_pipeline_goodurl(self, caplog):
-        """ Asserts that a list of articles is extracted from a valid URL via the 
-        Trafilatura pipeline called with Click. """
-        runner = CliRunner()
-        homepage_url = "'https://www.spiegel.de/'"
-        runner.invoke(get_articles_trafilatura_pipeline, f"-u {homepage_url} \n")
-        message = ("get_articles_trafilatura_pipeline(homepage_url) "
-                   "returned no articles.".format(caplog.text))
-        assert "INFO" in caplog.text, message
-
-    def test_click_get_articles_trafilatura_pipeline_badurl(self, caplog):
-        """ Asserts that a list of articles is extracted from a nonvalid URL via the 
-        Trafilatura pipeline called with Click. """
-        runner = CliRunner()
-        homepage_url = "'https://www.welt.de/'"
-        runner.invoke(get_articles_trafilatura_pipeline, f"-u {homepage_url} \n")
-        message = ("get_article_urls_trafilatura_pipeline(homepage_url) "
-                   "returned articles, despite none being expected.".format(caplog.text))
-        assert "ERROR" in caplog.text, message
-
-    def test_click_trafilatura_chain_goodurl(self, tmp_path):
-        """ Asserts that the entire Trafilatura pipeline works with the data provided by a valid URL.
-        The resulting dataframe is exported into a temporary directory. This is a Click function."""
-        runner = CliRunner()
-        homepage_url = "'https://www.spiegel.de/'"
-        output_folder = tmp_path / "newsfeedback"
-        output_folder.mkdir()
-        output_path = f"'{output_folder}'"
-        filter_choice = "'off'"
-        runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
-        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-        homepage = homepage.replace(".","") 
-        output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
-        latest_file = max(list_of_files, key=os.path.getctime)
-        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
-        message = ("The exported dataframe is empty.")                
-        assert df_from_file.shape[0] != 0, message
-
-    def test_click_trafilatura_chain_badurl(self, tmp_path):
-        """ Asserts that the entire Trafilatura pipeline works with the data provided by a nonvalid URL.
-        The resulting - empty - dataframe is exported into a temporary directory. This is a Click function."""
-        runner = CliRunner()
-        homepage_url = "'https://www.smo-wiki.leibniz-hbi.de/'"
-        output_folder = tmp_path / "newsfeedback"
-        output_folder.mkdir()
-        output_path = f"'{output_folder}'"
-        filter_choice = "'off'"
-        runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
-        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-        homepage = homepage.replace(".","") 
-        output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
-        latest_file = max(list_of_files, key=os.path.getctime)
-        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
-        message = ("The exported dataframe is not empty.")                
-        assert df_from_file.shape[0] == 0, message
-
-    def test_click_filter_trafilatura_chain_goodurl(self, tmp_path):
-        """ Asserts that the entire filtered Trafilatura pipeline works with the data provided by a valid URL.
-        The resulting dataframe is exported into a temporary directory. """
-        runner = CliRunner()
-        homepage_url = "'https://www.spiegel.de/'"
-        output_folder = tmp_path / "newsfeedback"
-        output_folder.mkdir()
-        output_path = f"'{output_folder}'"
-        filter_choice = "'on'"
-        runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
-        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-        homepage = homepage.replace(".","") 
-        output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
-        latest_file = max(list_of_files, key=os.path.getctime)
-        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
-        message = ("The exported dataframe is empty.")                
-        assert df_from_file.shape[0] != 0, message
-
-    def test_click_filter_trafilatura_chain_badurl(self, tmp_path):
-        """ Asserts that the entire filtered Trafilatura pipeline works with the data provided by a nonvalid URL.
-        The resulting - empty - dataframe is exported into a temporary directory. This is a Click function."""
-        runner = CliRunner()
-        homepage_url = "'https://www.smo-wiki.leibniz-hbi.de/'"
-        output_folder = tmp_path / "newsfeedback"
-        output_folder.mkdir()
-        output_path = f"'{output_folder}'"
-        filter_choice = "'on'"
-        runner.invoke(trafilatura_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
-        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-        homepage = homepage.replace(".","") 
-        output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
-        latest_file = max(list_of_files, key=os.path.getctime)
-        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
-        message = ("The exported dataframe is not empty.")                
-        assert df_from_file.shape[0] == 0, message
-
-class TestClickBeautifulSoupPipeline(object):
-    def test_click_get_articles_bs_pipeline_goodurl(self, caplog):
-        """ Asserts that a list of articles is extracted from a valid URL via the 
-        BeautifulSoup pipeline called with Click. """
-        runner = CliRunner()
-        homepage_url = "'https://www.welt.de/'"
-        runner.invoke(get_articles_bs_pipeline, f"-u {homepage_url} \n")
-        message = ("get_articles_bs_pipeline(homepage_url) "
-                   "returned no articles.".format(caplog.text))
-        assert "INFO" in caplog.text, message
-
-    def test_click_bs_chain(self, tmp_path):
-        """ Asserts that the entire BeautifulSoup pipeline works with the data provided by a valid URL.
-        The resulting dataframe is exported into a temporary directory. This is a Click function."""
-        runner = CliRunner()
-        homepage_url = "'https://www.welt.de/'"
-        output_folder = tmp_path / "newsfeedback"
-        output_folder.mkdir()
-        output_path = f"'{output_folder}'"
-        filter_choice = "'off'"
-        runner.invoke(beautifulsoup_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
-        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-        homepage = homepage.replace(".","") 
-        output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
-        latest_file = max(list_of_files, key=os.path.getctime)
-        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
-        message = ("The exported dataframe is empty.")                
-        assert df_from_file.shape[0] != 0, message
-
-
-    def test_click_filter_bs_chain(self, tmp_path):
-        """ Asserts that the entire filtered BeautifulSoup pipeline works with the data provided by a valid URL.
-        The resulting dataframe is exported into a temporary directory. This is a Click function."""
-        runner = CliRunner()
-        homepage_url = "'https://www.welt.de/'"
-        output_folder = tmp_path / "newsfeedback"
-        output_folder.mkdir()
-        output_path = f"'{output_folder}'"
-        filter_choice = "'on'"
-        runner.invoke(beautifulsoup_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
-        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-        homepage = homepage.replace(".","") 
-        output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
-        latest_file = max(list_of_files, key=os.path.getctime)
-        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
-        message = ("The exported dataframe is empty.")                
-        assert df_from_file.shape[0] != 0, message
-
-class TestClickPurAboPipeline(object):
-    def test_consent_button_homepage(self, caplog):
-        """ Asserts that the Pur Abo / consent button defined by class name in class_name 
-        can be clicked when the website homepage is given. This is a Click function."""
-        runner = CliRunner()
-        homepage_url = "'https://www.zeit.de/'"
-        runner.invoke(consent_button_homepage, f"-u {homepage_url} \n")
-        message = ("consent_button_homepage(homepage_url, class_name) "
-                    "was unable to click the consent button "
-                    "on the given homepage. ".format(caplog.text))
-        assert "INFO" in caplog.text, message
-    
-    def test_subscription_button_homepage(self, caplog):
-        """ Asserts that, should a different error than the Pur Abo / consent button be clicked, 
-        an error is returned. This is a Click function. """
-        runner = CliRunner()
-        homepage_url = "'https://www.zeit.de/'"
-        class_name = "js-forward-link-purabo"
-        runner.invoke(consent_button_homepage, f"-u {homepage_url} -c {class_name}\n")
-        message = ("consent_button_homepage(homepage_url, class_name) "
-                    "was unable to click the subscription button "
-                    "on the given homepage.".format(caplog.text))
-        assert "ERROR" in caplog.text, message
-
-    def test_click_purabo_chain(self, tmp_path):
-        """ Asserts that the entire Pur Abo pipeline works with the data provided by a valid URL.
-        The resulting dataframe is exported into a temporary directory. This is a Click function."""
-        runner = CliRunner()
-        homepage_url = "'https://www.zeit.de/'"
-        output_folder = tmp_path / "newsfeedback"
-        output_folder.mkdir()
-        output_path = f"'{output_folder}'"
-        filter_choice = "'off'"
-        runner.invoke(purabo_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
-        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-        homepage = homepage.replace(".","") 
-        output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
-        latest_file = max(list_of_files, key=os.path.getctime)
-        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
-        message = ("The exported dataframe is empty.")                
-        assert df_from_file.shape[0] != 0, message
-
-    def test_click_filter_purabo_chain(self, tmp_path):
-        """ Asserts that the entire filtered Pur Abo pipeline works with the data provided by a valid URL.
-        The resulting dataframe is exported into a temporary directory. This is a Click function.""" 
-        runner = CliRunner()
-        homepage_url = "'https://www.zeit.de/'"
-        output_folder = tmp_path / "newsfeedback"
-        output_folder.mkdir()
-        output_path = f"'{output_folder}'"
-        filter_choice = "'on'"
-        runner.invoke(purabo_pipeline, f"-u {homepage_url} -f {filter_choice} -o {output_path} \n")
-        homepage = re.search(r"\..+?\.",f"{homepage_url}").group(0)
-        homepage = homepage.replace(".","") 
-        output_path = output_path.replace("'", "")
-        list_of_files = glob.glob(f'{output_path}/{homepage}/*{homepage}.csv')
-        latest_file = max(list_of_files, key=os.path.getctime)
-        df_from_file = pd.read_csv(latest_file.replace(r".*?/.*?\\\\",""))
-        message = ("The exported dataframe is empty.")                
-        assert df_from_file.shape[0] != 0, message
-'''
