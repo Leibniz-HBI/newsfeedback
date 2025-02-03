@@ -1,6 +1,6 @@
 'https://www.spiegel.de/':
-  pipeline: 'trafilatura'
-  filter: 'off'
+  pipeline: 'beautifulsoup'
+  filter: 'on'
 
 'https://www.badische-zeitung.de/':
   pipeline: 'beautifulsoup'
@@ -19,8 +19,8 @@
   filter: 'on'
 
 'https://www.handelsblatt.com/':
-  pipeline: 'trafilatura'
-  filter: 'off'
+  pipeline: 'beautifulsoup'
+  filter: 'on'
 
 'https://www.n-tv.de/':
   pipeline: 'trafilatura'
@@ -39,7 +39,7 @@
   filter: 'on'
 
 'https://www.sueddeutsche.de/':
-  pipeline: 'trafilatura'
+  pipeline: 'beautifulsoup'
   filter: 'off'
 
 'https://www.t-online.de/':
@@ -67,5 +67,5 @@
   filter: 'on'
 
 'https://www.zeit.de/':
-  pipeline: 'purabo'
-  filter: 'on'
+  pipeline: 'trafilatura'
+  filter: 'off'

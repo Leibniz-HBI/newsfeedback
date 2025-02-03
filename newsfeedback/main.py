@@ -6,7 +6,6 @@ from loguru import logger as log
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -74,11 +73,7 @@ def get_article_urls_trafilatura_pipeline(homepage_url):
         log.error(f'{homepage_url}: No articles were found.')
     return article_url_list
 
-'''@cli.command(help='[TRAFILATURA PIPELINE] - Retrieves article URLs from homepage URL. Returns an article URL list.')
-@click.option('-u','--homepage-url',
-              help='This is the URL you extract the article URLs from. When using the BeautifulSoup pipeline, this can also be  HTML source code.')
-def get_articles_trafilatura_pipeline(homepage_url):
-    get_article_urls_trafilatura_pipeline(homepage_url)'''
+
 
 def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
     metadata_config = retrieve_config("metadata")
@@ -89,6 +84,7 @@ def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
         downloaded = trafilatura.fetch_url(article_url)
         metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
         if metadata is not None:
+            metadata = metadata.as_dict()
             dict_keys = list(metadata.keys())
             dict_keys_to_pop = [key for key in dict_keys if key not in metadata_wanted]
             if len(dict_keys_to_pop) != 0:
@@ -129,11 +125,41 @@ def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
 def get_article_urls_bs_pipeline(homepage):
     article_url_list = []
     if len(homepage) < 80:
-        downloaded = trafilatura.fetch_url(homepage)
+        sites_blocked_trafilatura = ["https://www.spiegel.de/"]
+        sites_requiring_javascript = ["https://www.handelsblatt.com/"]
+        if homepage not in sites_blocked_trafilatura and homepage not in sites_requiring_javascript:
+            downloaded = trafilatura.fetch_url(homepage)
+        else:
+            options = webdriver.ChromeOptions()
+            options.add_argument('headless=new') # comment out if you want to see what's happening
+            options.add_argument('--log-level=3')
+            options.add_argument('--lang=en')
+            options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
+            options.add_experimental_option('excludeSwitches', ['enable-logging'])
+            driver = webdriver.Chrome(options=options)
+            driver.delete_all_cookies()
+            driver.get(homepage)
+            downloaded = driver.page_source
+            javascript_search = re.match('enable Javascript', downloaded)
+            if javascript_search:
+                log.info(f"{homepage_url}: turning on JavaScript.")
+                driver.quit()
+                options = webdriver.ChromeOptions()
+                options.add_argument('--headless=new') # comment out if you want to see what's happening
+                options.add_argument('--log-level=3')
+                options.add_argument('--lang=en')
+                options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
+                options.add_experimental_option('excludeSwitches', ['enable-logging'])
+                options.add_argument('--enable-javascript')              
+                driver = webdriver.Chrome(options=options)
+                driver.delete_all_cookies()
+                driver.get(homepage)
+                downloaded = driver.page_source
+                log.info(downloaded)
+            driver.quit()
         homepage_url = homepage
     else:
         downloaded = homepage
-        homepage_url = "https://www.zeit.de/" # un-hardcode this
     soup = BeautifulSoup(downloaded, 'html.parser')
 
     for a in soup.find_all('a'):
@@ -160,17 +186,13 @@ def get_article_urls_bs_pipeline(homepage):
                     article_url_list.append(href)
     article_url_list = list(dict.fromkeys(article_url_list)) # refactor these!
     article_url_list = list(filter(lambda item: item is not None, article_url_list))
+    log.info(article_url_list)
     if len(article_url_list) != 0:
         log.info(f'{homepage_url}: {len(article_url_list)} links have been found.\r')
     else:
         log.error(f'{homepage_url}: No articles have been found. \r')
     return article_url_list
 
-'''@cli.command(help="[BEAUTIFULSOUP PIPELINE] - Retrieves article URLs from homepage URL. Returns a list of article URLs")
-@click.option('-u','--homepage-url',
-              help='This is the URL you extract the article URLs from. When using the BeautifulSoup pipeline, this can also be  HTML source code.')
-def get_articles_bs_pipeline(homepage_url):
-    get_article_urls_bs_pipeline(homepage_url)'''
 
 def get_article_metadata_chain_bs_pipeline(article_url_list):
     metadata_config = retrieve_config("metadata")
@@ -179,13 +201,69 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
     metadata_wanted.append('datetime')
 
     for article in article_url_list:
+
         if len(article) < 300:
-            downloaded = trafilatura.fetch_url(article)
+            sites_blocked_trafilatura = ["https://www.spiegel.de/"]
+            sites_requiring_javascript = ["https://www.handelsblatt.com/"]
+
+            homepage_finder = re.match(r".*?//.*?/", article)
+            homepage_found = homepage_finder.group()
+            if homepage_found not in sites_blocked_trafilatura and homepage_found not in sites_requiring_javascript:
+                downloaded = trafilatura.fetch_url(article)
+            else:
+                options = webdriver.ChromeOptions()
+                options.add_argument('--headless=new') # comment out if you want to see what's happening
+                options.add_argument('--log-level=3')
+                options.add_argument('--lang=en')
+                options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
+                options.add_experimental_option('excludeSwitches', ['enable-logging'])
+                if homepage_found in sites_requiring_javascript:
+                    options.add_argument('--enable-javascript')              
+                driver = webdriver.Chrome(options=options)
+                driver.delete_all_cookies()
+                if article == article_url_list[0]:
+                    driver.get(article) 
+                    downloaded = driver.page_source
+                else:
+                    driver.execute_script("window.open('" + str(article) + "');")
+                    time.sleep(1)
+                    if len(driver.window_handles) != 1:
+                        driver.switch_to.window(window_name=driver.window_handles[0])
+                        time.sleep(1)
+                        driver.close()
+                        driver.switch_to.window(window_name=driver.window_handles[0])
+                        try:        
+                            downloaded = driver.page_source            
+                            time.sleep(1)
+                            
+                        except TimeoutException:
+                            downloaded == None
+                    else:
+                        downloaded == None
+
+                
+                driver.quit()
+
+                
         else:
             downloaded = article
         if downloaded != None:
+            javascript_search = re.match('enable Javascript', downloaded)
+            if javascript_search:
+                options = webdriver.ChromeOptions()
+                options.add_argument('headless=new') # comment out if you want to see what's happening
+                options.add_argument('--log-level=3')
+                options.add_argument("--enable-javascript")              
+                options.add_argument('--lang=en')
+                options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
+                options.add_experimental_option('excludeSwitches', ['enable-logging'])
+                driver = webdriver.Chrome(options=options)
+                driver.delete_all_cookies()
+                downloaded = driver.page_source
+                driver.quit()
             metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True, include_comments=True)
             if metadata != None:
+                metadata = metadata.as_dict()
                 dict_keys = list(metadata.keys())
                 dict_keys_to_pop = [key for key in dict_keys if key not in metadata_wanted]
                 if len(dict_keys_to_pop) != 0:
@@ -223,211 +301,34 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
     return df
 
 
-### PUR ABO PIPELINE
-
-def accept_pur_abo_homepage(homepage_url, class_name):
-    options = webdriver.ChromeOptions()
-    options.add_argument('headless') # comment out if you want to see what's happening
-    options.add_argument('--log-level=3')
-    options.add_argument('--lang=en')
-    options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-    driver.delete_all_cookies()
-    driver.get(homepage_url)
-    title = driver.title
-    if title == "ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.":
-        try:
-            WebDriverWait(driver, 20).until(EC.frame_to_be_available_and_switch_to_it(0))
-            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
-            driver.switch_to.default_content()
-            WebDriverWait(driver, 20).until(EC.title_is('ZEIT ONLINE | Nachrichten, News, Hintergründe und Debatten'))
-            text = driver.page_source
-            log.info("The consent button was successfully clicked.")
-        except TimeoutException:
-            text = "Element could not be found, connection timed out."
-            log.error(f"{homepage_url}: {text}")
-    elif title == "ZEIT ONLINE | Nachrichten, News, Hintergründe und Debatten":
-        text = driver.page_source
-        log.info("The consent button was already clicked.")
-    else:
-        current_url = driver.current_url
-        message = f"Please check that you are on the correct page. The current URL is {current_url} and the title is '{title}'."
-        log.error(message)
-        text = None
-    return text, driver
-
-'''@cli.command(help='Presses the consent button on the homepage of a website with a so-called "Pur Abo".')
-@click.option('-u','--homepage-url',
-              help='This is the URL you extract the article URLs from. When using the BeautifulSoup pipeline, this can also be  HTML source code.')
-@click.option('-c', '--class-name', default='sp_choice_type_11',
-              help='This is the class name of the consent button. If no name is given, '
-              'newsfeedback uses the class name used by ZEIT Online for their consent button.')
-def consent_button_homepage(homepage_url, class_name):
-    accept_pur_abo_homepage(homepage_url, class_name)'''
-
-def accept_pur_abo_article(article_url_list, class_name):
-    options = webdriver.ChromeOptions()
-    options.add_argument('headless') # comment out if you want to see what's happening
-    options.add_argument('--log-level=3')
-    options.add_argument('--lang=en')
-    options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-    driver.delete_all_cookies()
-    driver.refresh()
-    if len(article_url_list) != 0:
-        driver.get(article_url_list[0])
-    else:
-        homepage_url = "https://www.zeit.de/"
-        driver.get(homepage_url)
-    title = driver.title
-    if title == "ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.":
-        try:
-            WebDriverWait(driver, 20).until(EC.frame_to_be_available_and_switch_to_it(0))
-            driver.implicitly_wait(10)
-            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CLASS_NAME, class_name))).click()
-            driver.switch_to.default_content()
-            # WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]')))
-            WebDriverWait(driver, 30).until(EC.any_of(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]')),
-                EC.none_of(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "title='ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.'"))
-                    )
-                    ))
-            text = driver.page_source
-            log.info("The consent button was successfully clicked.")
-        except TimeoutException:
-            text = 'Element could not be found, connection timed out.' 
-            log.error(f"{article_url_list[0]}: {text}")
-    else:
-        text = driver.page_source
-        log.info("The consent button was already clicked.")
-    return text, driver
-
-
-def get_pur_abo_article_urls_chain(text, driver):
-    try:
-        article_url_list = []
-        downloaded = text
-        homepage_url = "https://www.zeit.de/" # un-hardcode this
-        soup = BeautifulSoup(downloaded, 'html.parser')
-
-        for a in soup.find_all('a'):
-            href = a.get('href')
-            http_check = re.search(r'(http)', f'{href}')
-            if href != None:
-                if http_check == None:
-                    http_url = f"{homepage_url}" + f"{href}"
-                    double_slash_check = re.search(r"(?<!https:)(//)", http_url)
-                    if double_slash_check:
-                        http_url = re.sub(r"(?<!https:)(//)", r"/", http_url)
-                    double_de_check = re.search(r"/de/de/", http_url)
-                    if double_de_check:
-                        http_url = re.sub(r"/de/de/", r"/de/", http_url)
-                    article_url_list.append(http_url)
-                else:
-                    homepage_de = re.search(r'(https://www\..+?\.\w{2,3}/de/)', homepage_url)
-                    if homepage_de:
-                        homepage_split = homepage_de.group(0)
-                    else:
-                        homepage_split = re.search(r'(https://www\..+?\.\w{2,3})', homepage_url).group(0)
-                    homepage_check = re.search(fr'{homepage_split}/.+', href)
-                    if homepage_check:
-                        article_url_list.append(href)
-        article_url_list = list(dict.fromkeys(article_url_list)) # refactor these!
-        article_url_list = list(filter(lambda item: item is not None, article_url_list))
-        if len(article_url_list) != 0:
-            log.info(f'{homepage_url}: {len(article_url_list)} links have been found.\r')
-        else:
-            log.error(f'{homepage_url}: No articles have been found. \r')
-    except:
-        log.error('Unexpected error occured.')
-    driver.quit()
-    return article_url_list
-
-def get_pur_abo_article_metadata_chain(homepage_url, driver, article_url_list):
-    article_list = []
-    metadata_config = retrieve_config("metadata")
-    metadata_wanted = [k for k,v in metadata_config.items() if v == True]
-    metadata_wanted.append('datetime')
-    for article_url in article_url_list:
-        if article_url != None:
-            WebDriverWait(driver, 30).until(EC.any_of(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'body[data-page-type="article"]')),
-                EC.none_of(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "title='ZEIT ONLINE | Lesen Sie zeit.de mit Werbung oder im PUR-Abo. Sie haben die Wahl.'"))
-                    )
-                    ))
-            for x in range(5,20):
-                try:
-                    driver.get(article_url)
-                except TimeoutException:
-                    log.info(f"TimeoutException occurred, retrying after {x ** 2} seconds.")
-                    driver.implicitly_wait(x ** 2)
-                    driver.get(article_url)
-                    if x == 20 and driver.page_source == None:
-                        log.error("TimeoutException occurred and could not be resolved.")
-                        ### send mail here
-                        continue
-                if driver.page_source != None:
-                    break
-            article_page_source = driver.page_source
-            if len(article_page_source) < 300:
-                downloaded = trafilatura.fetch_url(article_page_source)
-            else:
-                downloaded = article_page_source
-            if downloaded != None:
-                metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
-                if metadata != None:
-                    dict_keys = list(metadata.keys())
-                    dict_keys_to_pop = [key for key in dict_keys if key not in metadata_wanted]
-                    if len(dict_keys_to_pop) != 0:
-                        for key in dict_keys_to_pop: 
-                            metadata.pop(key, None)
-                    else:
-                        metadata = metadata
-                    datetime = time.strftime(r"%Y%m%d-%H%M")
-                    datetime_column = {'datetime':datetime}
-                    metadata.update(datetime_column)
-                else:
-                    metadata = {}
-            else:  
-                metadata = {}
-            if len(metadata) != 0: # nested a bit too deep for my tastes, will refactor eventually
-                for k,v in metadata.items():
-                    if k == 'text':
-                        v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
-                        v = f'"{v_new}"'
-                        k_v_new ={k:v}
-                        metadata.update(k_v_new)
-                    elif k == 'comments':
-                        v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
-                        v = f'"{v_new}"'
-                        k_v_new ={k:v}
-                        metadata.update(k_v_new)
-                    else:
-                        pass
-                article_list.append(metadata)
-    if len(article_list) != 0:
-        log.info(f'{homepage_url}: {len(article_list)} articles with metadata have been found.\r')
-    else:
-        log.error(f'{homepage_url}: No articles with metadata were found.')
-    driver.quit()
-    df = pd.DataFrame.from_dict(article_list)
-    return df
-
 ### Filter-related functions
 
 def filter_urls(article_url_list, filter_choice):
     ### later this url blacklist will be modular, same with the regex parameters
     url_specific_blacklist = ['https://www.zeit.de/exklusive-zeit-artikel']
     year = time.strftime(r"%Y")
-    regex_parameters = fr"((/(\w+-)+\w+-\w+(\.html)?)|/-/\w+|{year})" # adjust regex so that /index end is kicked
-    if filter_choice == 'on':
+    list_of_sections = ["vermischtes", "impressum", "games", "dienste", "auto", "karriere", "familie", "fotostrecke",
+                        "gesundheit", "fuermich", "thema", "kontakt", "deinspiegel", "spiegel", "sport", "reise", "start", "stil", "tests"] # offload into a config at some point, complete with synonyms for term
+    
+    regex_sections = ""
+
+    for section in list_of_sections:
+        regex_sections = f"{regex_sections}{section}|" 
+
+    if regex_sections[-1] == "|":
+        regex_sections = regex_sections[:-1]
+    if len(regex_sections) != 0:
+        regex_sections = f"/({regex_sections})/|"
+
+    regex_parameters = fr"({regex_sections}(//(.*?){2}/$))"                  
+    if filter_choice == 'on': 
         filtered_url_list = []
         for article in article_url_list:
             viable_article = re.search(regex_parameters, article) 
-            if viable_article and article not in url_specific_blacklist:
+            if viable_article == None and article not in url_specific_blacklist:
                 filtered_url_list.append(article)
+            # else:
+            ## export to txt or csv or something - filter overview
         removed = (len(article_url_list)-len(filtered_url_list))
         if removed != 0:
             log.info(f'Removed {removed} URLs.')
@@ -466,15 +367,7 @@ def chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder):
     
     return df_path
 
-'''@cli.command(help="[TRAFILATURA PIPELINE] - Executes the complete trafilatura pipeline.")
-@click.option('-u','--homepage-url',
-              help='This is the URL you extract the article URLs from.')
-@click.option('-f', '--filter-choice',
-              help="Whether you want to filter results or not. Either 'on' or 'off'.")
-@click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="Defaults to newsfeedback's output folder.")
-def trafilatura_pipeline(homepage_url, filter_choice, output_folder):
-    chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder)'''
+
 
 def chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
     article_url_list = get_article_urls_bs_pipeline(homepage_url)
@@ -484,63 +377,7 @@ def chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
                   
     return df_path
 
-'''@cli.command(help="[BEAUTIFULSOUP PIPELINE] - Executes the complete beautifulsoup pipeline.")
-@click.option('-u','--homepage-url',
-              help='This is the URL you extract the article URLs from.')
-@click.option('-f', '--filter-choice',
-              help="Whether you want to filter results or not. Either 'on' or 'off'.")
-@click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="Defaults to newsfeedback's output folder.")
-def beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
-    chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)'''
 
-def chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_folder):
-    (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
-    article_url_list = get_pur_abo_article_urls_chain(text, driver)
-    if len(article_url_list) < 2:
-        for x in range(5,20):
-            driver.quit()
-            log.info(f"Retrying in {x ** 2} seconds.")
-            time.sleep(x ** 2)
-            (text, driver) = accept_pur_abo_homepage(homepage_url, class_name)
-            article_url_list = get_pur_abo_article_urls_chain(text, driver)
-            if x == 20 and len(article_url_list) == 0:
-                log.error(f"{homepage_url}: Due to an error accepting the first pur abo button, no articles with metadata were found, despite sufficient wait.")
-            if len(article_url_list) != 0:
-                break
-    returned_article_url_list = filter_urls(article_url_list, filter_choice)
-    driver.quit()
-    (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
-    df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
-    if df.shape[0] <= 2:
-        for x in range(5,20):
-            driver.quit()
-            log.info(f"Retrying in {x ** 2} seconds.")
-            time.sleep(x ** 2)
-            (text, driver) = accept_pur_abo_article(returned_article_url_list, class_name)
-            df = get_pur_abo_article_metadata_chain(homepage_url, driver, returned_article_url_list)
-            if x == 20 and df.shape[0] == 0:
-                driver.quit()
-                log.error(f"{homepage_url}: Due to an error accepting the second pur abo button, no articles with metadata were found, despite sufficient wait.")
-            if df.shape[0] != 0:
-                driver.quit()
-                break
-    else:
-        driver.quit()
-    export_dataframe(df, homepage_url, output_folder)
-'''
-@cli.command(help="[PURABO PIPELINE] - Executes the complete pur abo pipeline.")
-@click.option('-u','--homepage-url',
-              help='This is the URL you extract the article URLs from.')
-@click.option('-c', '--class-name', default='sp_choice_type_11',
-              help='This is the class name of the consent button. If no name is given, '
-              'newsfeedback uses the class name used by ZEIT Online for their consent button.')
-@click.option('-f', '--filter-choice',
-              help="Whether you want to filter results or not. Either 'on' or 'off'.")
-@click.option('-o', '--output-folder', default='newsfeedback/output',
-              help="Defaults to newsfeedback's output folder.")
-def purabo_pipeline(homepage_url, class_name, filter_choice, output_folder):
-    chained_purabo_pipeline(homepage_url, class_name, filter_choice, output_folder)'''
 
 ### CONFIG RELATED FUNCTIONS
 
