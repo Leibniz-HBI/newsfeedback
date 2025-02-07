@@ -1,4 +1,4 @@
-import trafilatura, click, re, time, yaml, os, schedule
+import trafilatura, click, re, time, yaml, os, schedule, requests, random, decimal
 import pandas as pd
 from pathlib import Path
 from trafilatura import feeds
@@ -129,20 +129,18 @@ def get_article_urls_bs_pipeline(homepage):
         if homepage not in sites_blocked_trafilatura and homepage not in sites_requiring_javascript:
             downloaded = trafilatura.fetch_url(homepage)
         else:
-            options = webdriver.ChromeOptions()
-            options.add_argument('headless=new') # comment out if you want to see what's happening
-            options.add_argument('--log-level=3')
-            options.add_argument('--lang=en')
-            options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
-            options.add_experimental_option('excludeSwitches', ['enable-logging'])
-            driver = webdriver.Chrome(options=options)
-            driver.delete_all_cookies()
-            driver.get(homepage)
-            downloaded = driver.page_source
-            javascript_search = re.match('enable Javascript', downloaded)
+            r = requests.get(homepage, timeout=5)
+            if r.status_code == requests.codes.ok:                
+                downloaded = r.text
+                r.close()
+                time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100))
+            else:
+                r.raise_for_status()
+                downloaded = ""
+            
+            javascript_search = re.search('enable JavaScript', downloaded)
             if javascript_search:
-                log.info(f"{homepage_url}: turning on JavaScript.")
-                driver.quit()
+                log.info(f"{homepage}: turning on JavaScript.")
                 options = webdriver.ChromeOptions()
                 options.add_argument('--headless=new') # comment out if you want to see what's happening
                 options.add_argument('--log-level=3')
@@ -151,11 +149,9 @@ def get_article_urls_bs_pipeline(homepage):
                 options.add_experimental_option('excludeSwitches', ['enable-logging'])
                 options.add_argument('--enable-javascript')              
                 driver = webdriver.Chrome(options=options)
-                driver.delete_all_cookies()
                 driver.get(homepage)
                 downloaded = driver.page_source
-                log.info(downloaded)
-            driver.quit()
+                driver.quit()
         homepage_url = homepage
     else:
         downloaded = homepage
@@ -173,6 +169,9 @@ def get_article_urls_bs_pipeline(homepage):
                 double_de_check = re.search(r"/de/de/", http_url)
                 if double_de_check:
                     http_url = re.sub(r"/de/de/", r"/de/", http_url)
+                double_url_check = re.search(r"(\/{2}www\..*?){2}", http_url)
+                if double_url_check:
+                    http_url = re.sub(r"\/{2}.*?\/{2}", "//", http_url)
                 article_url_list.append(http_url)
             else:
                 homepage_de = re.search(r'(https://www\..+?\.\w{2,3}/de/)', homepage_url)
@@ -185,7 +184,6 @@ def get_article_urls_bs_pipeline(homepage):
                     article_url_list.append(href)
     article_url_list = list(dict.fromkeys(article_url_list)) # refactor these!
     article_url_list = list(filter(lambda item: item is not None, article_url_list))
-    log.info(article_url_list)
     if len(article_url_list) != 0:
         log.info(f'{homepage_url}: {len(article_url_list)} links have been found.\r')
     else:
@@ -205,43 +203,52 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
             sites_blocked_trafilatura = ["https://www.spiegel.de/"]
             sites_requiring_javascript = ["https://www.handelsblatt.com/"]
 
-            homepage_finder = re.match(r".*?//.*?/", article)
+            homepage_finder = re.match(r".*?//www\..*?\..{2,3}/?", article)
             homepage_found = homepage_finder.group()
             if homepage_found not in sites_blocked_trafilatura and homepage_found not in sites_requiring_javascript:
                 downloaded = trafilatura.fetch_url(article)
             else:
-                options = webdriver.ChromeOptions()
-                options.add_argument('--headless=new') # comment out if you want to see what's happening
-                options.add_argument('--log-level=3')
-                options.add_argument('--lang=en')
-                options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
-                options.add_experimental_option('excludeSwitches', ['enable-logging'])
-                if homepage_found in sites_requiring_javascript:
-                    options.add_argument('--enable-javascript')              
-                driver = webdriver.Chrome(options=options)
-                driver.delete_all_cookies()
-                if article == article_url_list[0]:
-                    driver.get(article) 
-                    downloaded = driver.page_source
-                else:
-                    driver.execute_script("window.open('" + str(article) + "');")
-                    time.sleep(1)
-                    if len(driver.window_handles) != 1:
-                        driver.switch_to.window(window_name=driver.window_handles[0])
-                        time.sleep(1)
-                        driver.close()
-                        driver.switch_to.window(window_name=driver.window_handles[0])
-                        try:        
-                            downloaded = driver.page_source            
-                            time.sleep(1)
-                            
-                        except TimeoutException:
-                            downloaded == None
-                    else:
-                        downloaded == None
+                if homepage_found not in sites_requiring_javascript:
+                    r = requests.get(article, timeout=5)
+                    #homepage_status = r.status_code
+                    if r.status_code == requests.codes.ok:                
+                        downloaded = r.text
+                        r.close()
+                        time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float
 
-                
-                driver.quit()
+                    else:
+                        r.raise_for_status()
+                else:
+                    options = webdriver.ChromeOptions()
+                    options.add_argument('--headless=new') # comment out if you want to see what's happening
+                    options.add_argument('--log-level=3')
+                    options.add_argument('--lang=en')
+                    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
+                    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+                    options.add_argument('--enable-javascript')              
+                    driver = webdriver.Chrome(options=options)
+                    driver.delete_all_cookies()
+
+                    if article == article_url_list[0]:
+                        driver.get(article) 
+                        downloaded = driver.page_source
+                    else:
+                        driver.execute_script("window.open('" + str(article) + "');")
+                        time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float
+                        if len(driver.window_handles) != 1:
+                            driver.switch_to.window(window_name=driver.window_handles[0])
+                            time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100))
+                            driver.close()
+                            driver.switch_to.window(window_name=driver.window_handles[0])
+                            try:        
+                                downloaded = driver.page_source            
+                                time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float
+                                
+                            except Exception:
+                                downloaded == None
+                        else:
+                            downloaded == None
+                    driver.quit()
 
                 
         else:
@@ -260,7 +267,7 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
                 driver.delete_all_cookies()
                 downloaded = driver.page_source
                 driver.quit()
-            metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True, include_comments=True)
+            metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=False, include_comments=True)
             if metadata != None:
                 metadata = metadata.as_dict()
                 dict_keys = list(metadata.keys())
@@ -304,30 +311,59 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
 
 def filter_urls(article_url_list, filter_choice):
     ### later this url blacklist will be modular, same with the regex parameters
-    url_specific_blacklist = ['https://www.zeit.de/exklusive-zeit-artikel']
-    year = time.strftime(r"%Y")
-    list_of_sections = ["vermischtes", "impressum", "games", "dienste", "auto", "karriere", "familie", "fotostrecke",
-                        "gesundheit", "fuermich", "thema", "kontakt", "deinspiegel", "spiegel", "sport", "reise", "start", "stil", "tests"] # offload into a config at some point, complete with synonyms for term
+    url_specific_blacklist = ['https://www.zeit.de/exklusive-zeit-artikel', 'https://www.spiegel.de/__proto_url__', 'https://www.sueddeutsche.de/updates-mobileapps', 'https://www.sueddeutsche.de/updates-rss', 'https://www.sueddeutsche.de/mediadaten']
+    section_blacklist = ["vermischtes", "impressum", "games", "dienste", "auto", "karriere", "familie", "fotostrecke", "service", "raetsel", "impressum", "updates-.*?", "ratgeber",
+                        "gesundheit", "fuermich", "thema", "kontakt", "deinspiegel", "spiegel", "sport", "reise", "start", "stil", "tests", "mediadaten", "produktempfehlung",
+                        "gutscheine", "app", "consent", "sub", "elibrary"] # offload into a config at some point, complete with synonyms for term
+    section_whitelist = ["artikel"]
+
+    regex_blacklist_sections = ""
+
+    for section in section_blacklist:
+        regex_blacklist_sections = f"{regex_blacklist_sections}{section}|" 
+
+    if regex_blacklist_sections[-1] == "|":
+        regex_blacklist_sections = regex_blacklist_sections[:-1]
+    if len(regex_blacklist_sections) != 0:
+        regex_blacklist_sections = fr"\/({regex_blacklist_sections})\/?"
+
+
+    regex_whitelist_sections = ""
+
+    for section in section_whitelist:
+        regex_whitelist_sections = f"{regex_whitelist_sections}{section}|" 
+
+    if regex_whitelist_sections[-1] == "|":
+        regex_whitelist_sections = regex_whitelist_sections[:-1]
+    if len(regex_whitelist_sections) != 0:
+        regex_whitelist_sections = fr"\/({regex_whitelist_sections})\/?"
+
+
+    regex_parameters_general = r"((\/.*?){2,}\/$|\/\/www\..*?\..{2,3}\/[^\/]*?$|\/\/www\..*?\..{2}$)"
+    regex_parameters_blacklist_sections = fr"({regex_blacklist_sections})"  
+    regex_parameters_whitelist_sections = fr"({regex_whitelist_sections})"
+
     
-    regex_sections = ""
-
-    for section in list_of_sections:
-        regex_sections = f"{regex_sections}{section}|" 
-
-    if regex_sections[-1] == "|":
-        regex_sections = regex_sections[:-1]
-    if len(regex_sections) != 0:
-        regex_sections = f"/({regex_sections})/|"
-
-    regex_parameters = fr"({regex_sections}(//(.*?){2}/$))"                  
+                   
     if filter_choice == 'on': 
         filtered_url_list = []
         for article in article_url_list:
-            viable_article = re.search(regex_parameters, article) 
-            if viable_article == None and article not in url_specific_blacklist:
+
+            not_viable_article_sections = re.search(regex_parameters_blacklist_sections, article) 
+            viable_article_sections = re.search(regex_parameters_whitelist_sections, article)
+            not_viable_article_general = re.search(regex_parameters_general, article)
+
+            if article not in url_specific_blacklist and viable_article_sections != None:
+                #print(f"P1 - {article}")
                 filtered_url_list.append(article)
-            # else:
+            else:
+                if not_viable_article_general == None and not_viable_article_sections == None:
+                    #print(f"P2 - {article}")
+                    filtered_url_list.append(article)
+            #else:
+
             ## export to txt or csv or something - filter overview
+        filtered_url_list = list(dict.fromkeys(filtered_url_list))    
         removed = (len(article_url_list)-len(filtered_url_list))
         if removed != 0:
             log.info(f'Removed {removed} URLs.')
@@ -363,20 +399,14 @@ def chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder):
     filtered_url_list = filter_urls(article_url_list, filter_choice)
     df = get_article_metadata_chain_trafilatura_pipeline(filtered_url_list)
     df_path = export_dataframe(df, homepage_url, output_folder)
-    
     return df_path
-
-
 
 def chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder):
     article_url_list = get_article_urls_bs_pipeline(homepage_url)
     filtered_url_list = filter_urls(article_url_list, filter_choice)
     df = get_article_metadata_chain_bs_pipeline(filtered_url_list)
-    df_path = export_dataframe(df, homepage_url, output_folder)
-                  
+    df_path = export_dataframe(df, homepage_url, output_folder)             
     return df_path
-
-
 
 ### CONFIG RELATED FUNCTIONS
 
@@ -391,8 +421,6 @@ def get_pipeline_from_config(homepage_url, output_folder):
             chained_trafilatura_pipeline(homepage_url, filter_option, output_folder)
         elif pipeline == 'beautifulsoup':
             chained_beautifulsoup_pipeline(homepage_url, filter_option, output_folder)
-        elif pipeline == 'purabo':
-            chained_purabo_pipeline(homepage_url, 'sp_choice_type_11', filter_option, output_folder)
         else:
             log.error('Please check the pipeline information given for this URL.')
     else:
