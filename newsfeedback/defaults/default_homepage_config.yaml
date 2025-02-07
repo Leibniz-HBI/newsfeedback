@@ -40,7 +40,7 @@
 
 'https://www.sueddeutsche.de/':
   pipeline: 'beautifulsoup'
-  filter: 'off'
+  filter: 'on'
 
 'https://www.t-online.de/':
   pipeline: 'trafilatura'
