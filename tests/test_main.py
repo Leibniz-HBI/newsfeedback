@@ -117,11 +117,31 @@ class TestBeautifulSoupPipeline(object):
         message = ("get_article_urls_bs_pipeline(homepage_url) "
                    "returned {0} article URLs.".format(len(actual)))
         assert len(actual) != not_expected, message
+    
+    def test_get_article_urls_javascript_bs_pipeline(self):
+        """ Asserts that a list of articles is extracted from a valid URL via the 
+        BeautifulSoup pipeline, where JavaScript needs to be activated. """
+        homepage_url = "https://www.handelsblatt.com/"
+        actual = get_article_urls_bs_pipeline(homepage_url)
+        not_expected = 0
+        message = ("get_article_urls_bs_pipeline(homepage_url) "
+                   "returned {0} article URLs.".format(len(actual)))
+        assert len(actual) != not_expected, message
 
     def test_get_article_metadata_title_date_url_description_bs_pipeline(self):
         """ Asserts that a list of articles and the corresponding metadata
         are extracted from a valid URL via the BeautifulSoup pipeline. """
         article_url_list = ["https://www.welt.de/unwetterwarnung-aufgehoben-aber-schnee-und-eis-sollen-ueber-nacht-zurueckkehren", "https://www.welt.de/fasnacht-2023-in-freiburg-das-programm-am-fasnets-wochenende"]
+        actual = get_article_metadata_chain_bs_pipeline(article_url_list)
+        not_expected = 0
+        message = ("get_article_metadata_chain_bs_pipeline(article_url_list) "
+                   "returned {0} metadata.".format(actual.shape[0]))
+        assert actual.shape[0] != not_expected, message
+
+    def test_get_article_metadata_title_date_url_description_javascript_bs_pipeline(self):
+        """ Asserts that a list of articles and the corresponding metadata
+        are extracted from a valid URL via the BeautifulSoup pipeline, where JavaScript needs to be activated. """
+        article_url_list = ["https://www.handelsblatt.com/politik/deutschland/bundestagswahl-scholz-spricht-merz-die-kanzlertauglichkeit-ab-der-kontert/100106946.html", "https://www.handelsblatt.com/meinung/gastbeitraege/wir-brauchen-eine-demokratisierung-kuenstlicher-intelligenz/100106779.html"]
         actual = get_article_metadata_chain_bs_pipeline(article_url_list)
         not_expected = 0
         message = ("get_article_metadata_chain_bs_pipeline(article_url_list) "
@@ -140,6 +160,17 @@ class TestBeautifulSoupPipeline(object):
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message  
 
+    def test_beautifulsoup_javascript_pipeline(self, tmp_path):
+        """ Asserts that the entire BeautifulSoup pipeline works with the data provided by a valid URL, which requires
+        JavaScript to be activated. The resulting dataframe is exported into a temporary directory. """
+        homepage_url = "https://www.handelsblatt.com/"
+        output_folder = tmp_path / "newsfeedback"
+        output_folder.mkdir()
+        filter_choice = 'off'
+        actual = chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)
+        df_from_file = pd.read_csv(actual)
+        message = ("The exported dataframe is empty.")                
+        assert df_from_file.shape[0] != 0, message  
 
 class TestFilterPipeline(object):
     ### Not sure if the first two make sense, as the trafilatura pipeline pipeline already 
