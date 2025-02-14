@@ -23,9 +23,14 @@ def retrieve_config(type_config, tmp_path=False):
     path_default_metadata_config = directory/"newsfeedback"/"defaults"/"default_metadata_config.yaml"
     path_user_homepage_config = directory/"user_homepage_config.yaml"
     path_default_homepage_config = directory/"newsfeedback"/"defaults"/"default_homepage_config.yaml"
+    path_user_filter_choice_config = directory/"user_filter_choice_config.yaml"
+    path_default_filter_choice_config = directory/"newsfeedback"/"defaults"/"default_filter_choice_config.yaml"
+    path_default_filter_sections_config = directory/"newsfeedback"/"defaults"/"default_filter_sections_config.yaml"
     if tmp_path:
         path_tmp_metadata_config = tmp_path/"tmp_metadata_config.yaml"
         path_tmp_homepage_config = tmp_path/"tmp_homepage_config.yaml"
+        path_tmp_filter_choice_config = tmp_path/"tmp_filter_choice_config.yaml"
+        path_tmp_filter_sections_config = tmp_path/"tmp_filter_sections_config.yaml"
 
     if type_config == "metadata":
         if Path(path_user_metadata_config).exists():
@@ -57,6 +62,29 @@ def retrieve_config(type_config, tmp_path=False):
         config_file.write_bytes(path_default_homepage_config.read_bytes())
         log.info(f"Using the default {type_config} config at {config_file}.")
   
+    elif type_config == "filter_choice":
+        if Path(path_user_filter_choice_config).exists():
+            config_file = Path(path_user_filter_choice_config)
+            log.info(f"Using the user-generated {type_config} config at {config_file}.")
+        else:
+            config_file = Path(path_default_filter_choice_config)
+            log.info(f"Using the default {type_config} config at {config_file}.")
+    elif type_config == "filter_choice_default":
+        config_file = Path(path_default_filter_choice_config)
+        log.info(f"Using the default {type_config} config at {config_file}.")
+    elif type_config == "filter_choice_test":
+        config_file = Path(path_tmp_filter_choice_config)
+        config_file.write_bytes(path_default_filter_choice_config.read_bytes())
+        log.info(f"Using the default {type_config} config at {config_file}.")
+
+    elif type_config == "filter_sections":
+        config_file = Path(path_default_filter_sections_config)
+        log.info(f"Using the default {type_config} config at {config_file}.")
+    elif type_config == "filter_Sections_test":
+        config_file = Path(path_tmp_filter_sections_config)
+        config_file.write_bytes(path_default_filter_sections_config.read_bytes())
+        log.info(f"Using the default {type_config} config at {config_file}.")
+
     with config_file.open() as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
         return data
@@ -155,8 +183,21 @@ def get_article_urls_bs_pipeline(homepage):
         homepage_url = homepage
     else:
         downloaded = homepage
-    soup = BeautifulSoup(downloaded, 'html.parser')
-
+    try:
+        soup = BeautifulSoup(downloaded, 'html.parser')
+    except TypeError as e:
+        log.info(f"{homepage}: trying again with Selenium.")
+        options = webdriver.ChromeOptions()
+        options.add_argument('--headless=new') # comment out if you want to see what's happening
+        options.add_argument('--log-level=3')
+        options.add_argument('--lang=en')
+        options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
+        options.add_experimental_option('excludeSwitches', ['enable-logging'])
+        driver = webdriver.Chrome(options=options)
+        driver.get(homepage)
+        downloaded = driver.page_source
+        driver.quit()
+        soup = BeautifulSoup(downloaded, 'html.parser')
     for a in soup.find_all('a'):
         href = a.get('href')
         http_check = re.search(r'(http)', f'{href}')
@@ -311,42 +352,54 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
 
 def filter_urls(article_url_list, filter_choice):
     ### later this url blacklist will be modular, same with the regex parameters
-    url_specific_blacklist = ['https://www.zeit.de/exklusive-zeit-artikel', 'https://www.spiegel.de/__proto_url__', 'https://www.sueddeutsche.de/updates-mobileapps', 'https://www.sueddeutsche.de/updates-rss', 'https://www.sueddeutsche.de/mediadaten']
-    section_blacklist = ["vermischtes", "impressum", "games", "dienste", "auto", "karriere", "familie", "fotostrecke", "service", "raetsel", "impressum", "updates-.*?", "ratgeber",
-                        "gesundheit", "fuermich", "thema", "kontakt", "deinspiegel", "spiegel", "sport", "reise", "start", "stil", "tests", "mediadaten", "produktempfehlung",
-                        "gutscheine", "app", "consent", "sub", "elibrary"] # offload into a config at some point, complete with synonyms for term
-    section_whitelist = ["artikel"]
-
-    regex_blacklist_sections = ""
-
-    for section in section_blacklist:
-        regex_blacklist_sections = f"{regex_blacklist_sections}{section}|" 
-
-    if regex_blacklist_sections[-1] == "|":
-        regex_blacklist_sections = regex_blacklist_sections[:-1]
-    if len(regex_blacklist_sections) != 0:
-        regex_blacklist_sections = fr"\/({regex_blacklist_sections})\/?"
+    #section_blacklist = ["vermischtes", "impressum", "games", "dienste", "auto", "karriere", "familie", "fotostrecke", "service", "raetsel", "impressum", "updates-.*?", "ratgeber",
+    #                    "gesundheit", "fuermich", "thema", "kontakt", "deinspiegel", "spiegel", "sport", "reise", "start", "stil", "tests", "mediadaten", "produktempfehlung",
+    #                    "gutscheine", "app", "consent", "sub", "elibrary"] # offload into a config at some point, complete with synonyms for term
+    # open config, check which functions are checked (service by default), append to list
 
 
-    regex_whitelist_sections = ""
-
-    for section in section_whitelist:
-        regex_whitelist_sections = f"{regex_whitelist_sections}{section}|" 
-
-    if regex_whitelist_sections[-1] == "|":
-        regex_whitelist_sections = regex_whitelist_sections[:-1]
-    if len(regex_whitelist_sections) != 0:
-        regex_whitelist_sections = fr"\/({regex_whitelist_sections})\/?"
-
-
-    regex_parameters_general = r"((\/.*?){2,}\/$|\/\/www\..*?\..{2,3}\/[^\/]*?$|\/\/www\..*?\..{2}$)"
-    regex_parameters_blacklist_sections = fr"({regex_blacklist_sections})"  
-    regex_parameters_whitelist_sections = fr"({regex_whitelist_sections})"
-
+    
     
                    
     if filter_choice == 'on': 
+        filter_config = retrieve_config('filter_choice')
+        filter_sections = retrieve_config('filter_sections')
+        filter_wanted = [k for k,v in filter_config.items() if v == 'on']
+        filter_sections_wanted = [str(v) for k,v in filter_sections.items() if k in filter_wanted]
+        filter_sections_wanted_clean = [section.replace('-"', '').replace('"', '').split(' ') for section in filter_sections_wanted]
+        
+        
+        url_specific_blacklist = ['https://www.zeit.de/exklusive-zeit-artikel', 'https://www.spiegel.de/__proto_url__', 'https://www.sueddeutsche.de/updates-mobileapps', 'https://www.sueddeutsche.de/updates-rss', 'https://www.sueddeutsche.de/mediadaten']
+        section_blacklist = [term for section in filter_sections_wanted_clean for term in section]
+        regex_blacklist_sections = ""
+
+        for section in section_blacklist:
+            regex_blacklist_sections = f"{regex_blacklist_sections}{section}|" 
+
+        if regex_blacklist_sections[-1] == "|":
+            regex_blacklist_sections = regex_blacklist_sections[:-1]
+        if len(regex_blacklist_sections) != 0:
+            regex_blacklist_sections = fr"\/({regex_blacklist_sections})\/?"
+
+        section_whitelist = ["artikel"]
+
+        regex_whitelist_sections = ""
+
+        for section in section_whitelist:
+            regex_whitelist_sections = f"{regex_whitelist_sections}{section}|" 
+
+        if regex_whitelist_sections[-1] == "|":
+            regex_whitelist_sections = regex_whitelist_sections[:-1]
+        if len(regex_whitelist_sections) != 0:
+            regex_whitelist_sections = fr"\/({regex_whitelist_sections})\/?"
+
+
+        regex_parameters_general = r"((\/.*?){2,}\/$|\/\/www\..*?\..{2,3}\/[^\/]*?$|\/\/www\..*?\..{2}$)"
+        regex_parameters_blacklist_sections = fr"({regex_blacklist_sections})"  
+        regex_parameters_whitelist_sections = fr"({regex_whitelist_sections})"
+
         filtered_url_list = []
+        removed_url_list = []
         for article in article_url_list:
 
             not_viable_article_sections = re.search(regex_parameters_blacklist_sections, article) 
@@ -354,15 +407,14 @@ def filter_urls(article_url_list, filter_choice):
             not_viable_article_general = re.search(regex_parameters_general, article)
 
             if article not in url_specific_blacklist and viable_article_sections != None:
-                #print(f"P1 - {article}")
                 filtered_url_list.append(article)
             else:
                 if not_viable_article_general == None and not_viable_article_sections == None:
-                    #print(f"P2 - {article}")
                     filtered_url_list.append(article)
-            #else:
+                else: 
+                    removed_url_list.append(article)
+                    ### if you want to add in an export
 
-            ## export to txt or csv or something - filter overview
         filtered_url_list = list(dict.fromkeys(filtered_url_list))    
         removed = (len(article_url_list)-len(filtered_url_list))
         if removed != 0:
@@ -386,7 +438,8 @@ def export_dataframe(df, homepage_url, output_folder):
     Path(output_subfolder).mkdir(exist_ok=True)
     try:
         df_path = Path(f"{output_subfolder}/{timestr}-{df_name}.csv")
-        df.to_csv(df_path, index=False, mode='a')
+        df_nona = df.dropna()
+        df_nona.to_csv(df_path, index=False, mode='a', encoding="utf-8")
         log.info(f'File generated at: {df_path}')
     except:
         log.error('Unexpected error occurred. File could not be generated.')
@@ -438,10 +491,10 @@ def pipeline_picker(homepage_url, output_folder):
     get_pipeline_from_config(homepage_url, output_folder)
 
 def copy_default_to_metadata_config(answer, tmp_path=False):
-    if answer != "Y" and answer != "testing_tmp_path":
+    if (answer != "Y" or answer != "y") and answer != "testing_tmp_path":
         pass
     else:
-        if answer == 'Y':
+        if answer == 'Y' or answer == 'y':
             directory = Path().resolve()
             path_user_metadata_config = directory/"user_metadata_config.yaml"
             path_default_metadata_config = directory/"newsfeedback"/"defaults"/"default_metadata_config.yaml"
@@ -465,7 +518,7 @@ def copy_default_to_metadata_config(answer, tmp_path=False):
                 log.error('There was an unexpected error.')
 
 def copy_default_to_homepage_config(answer, tmp_path=False):
-    if answer != "Y" and answer != "testing_tmp_path":
+    if (answer != "Y" or answer == 'y') and answer != "testing_tmp_path":
         pass
     else:
         if answer == 'Y' or answer == 'y':

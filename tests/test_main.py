@@ -247,7 +247,7 @@ class TestPipelineFromConfig(object):
 
     def test_retrieve_config(self, tmp_path):
         """ Asserts that all available config files are retrieved and not empty. """
-        terms = ['metadata', 'homepage', 'metadata_test', 'homepage_test']
+        terms = ['metadata', 'homepage', 'metadata_test', 'homepage_test', 'filter_choice', 'filter_choice_test','filter_sections']
         empty_files = []
         for term in terms:
             actual = retrieve_config(term, tmp_path)
