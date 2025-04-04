@@ -121,7 +121,7 @@ class TestBeautifulSoupPipeline(object):
     def test_get_article_urls_javascript_bs_pipeline(self):
         """ Asserts that a list of articles is extracted from a valid URL via the 
         BeautifulSoup pipeline, where JavaScript needs to be activated. """
-        homepage_url = "https://www.handelsblatt.com/"
+        homepage_url = "https://www.derstandard.at/"
         actual = get_article_urls_bs_pipeline(homepage_url)
         not_expected = 0
         message = ("get_article_urls_bs_pipeline(homepage_url) "
@@ -141,7 +141,7 @@ class TestBeautifulSoupPipeline(object):
     def test_get_article_metadata_title_date_url_description_javascript_bs_pipeline(self):
         """ Asserts that a list of articles and the corresponding metadata
         are extracted from a valid URL via the BeautifulSoup pipeline, where JavaScript needs to be activated. """
-        article_url_list = ["https://www.handelsblatt.com/politik/deutschland/bundestagswahl-scholz-spricht-merz-die-kanzlertauglichkeit-ab-der-kontert/100106946.html", "https://www.handelsblatt.com/meinung/gastbeitraege/wir-brauchen-eine-demokratisierung-kuenstlicher-intelligenz/100106779.html"]
+        article_url_list = ["https://www.derstandard.at/story/3000000264129/das-verrueckteste-an-trumps-zoellen-ist-die-methode-wie-er-zu-seinen-zahlen-kommt", "https://www.derstandard.at/story/3000000263886/wie-die-kleineren-eu-laender-aufruesten-wollen"]
         actual = get_article_metadata_chain_bs_pipeline(article_url_list)
         not_expected = 0
         message = ("get_article_metadata_chain_bs_pipeline(article_url_list) "
@@ -163,7 +163,7 @@ class TestBeautifulSoupPipeline(object):
     def test_beautifulsoup_javascript_pipeline(self, tmp_path):
         """ Asserts that the entire BeautifulSoup pipeline works with the data provided by a valid URL, which requires
         JavaScript to be activated. The resulting dataframe is exported into a temporary directory. """
-        homepage_url = "https://www.handelsblatt.com/"
+        homepage_url = "https://www.derstandard.at/"
         output_folder = tmp_path / "newsfeedback"
         output_folder.mkdir()
         filter_choice = 'off'

@@ -4,12 +4,13 @@ from pathlib import Path
 from trafilatura import feeds
 from loguru import logger as log
 from bs4 import BeautifulSoup
+from tqdm import tqdm
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 
 @click.group()
@@ -90,6 +91,31 @@ def retrieve_config(type_config, tmp_path=False):
         return data
 
 
+def click_popup(driver):
+    try:
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//div[contains(@id, 'sp_message_container_')]")))
+        find_container = driver.find_element(By.XPATH, "//iframe[contains(@id, 'sp_message_iframe_')]")
+        driver.switch_to.frame(find_container)
+        find_button = driver.find_element(By.XPATH, "//button[contains(@class, 'sp_choice_type_11')]")
+        find_button.click()
+        driver.implicitly_wait(5)
+        WebDriverWait(driver, 20).until(EC.none_of(EC.presence_of_element_located((By.CLASS_NAME, "message-overlay"))))
+        log.info("TCF consent button was successfully clicked.")
+    except TimeoutException:
+        log.error("TCF consent button could not be found, trying again.")
+        try:
+            log.info(driver.page_source)
+            find_button = driver.find_element(By.XPATH, "//button[contains(@class, 'sp_choice_type_11')]")
+            find_button.click()
+            driver.implicitly_wait(5)
+            WebDriverWait(driver, 20).until(EC.none_of(EC.presence_of_element_located((By.CLASS_NAME, "message-overlay"))))
+            log.info("TCF consent button was successfully clicked.")
+        except TimeoutException:
+            log.error("TCF consent button could not be found, connection timed out.")    
+    except NoSuchElementException:
+        pass
+    return driver
+
 ### TRAFILATURA PIPELINE
 
 def get_article_urls_trafilatura_pipeline(homepage_url):
@@ -97,6 +123,7 @@ def get_article_urls_trafilatura_pipeline(homepage_url):
     if len(article_url_list) != 0:
         log.info(f'{homepage_url}: {len(article_url_list)} articles were found.\r')
     else:
+        article_url_list = []
         log.error(f'{homepage_url}: No articles were found.')
     return article_url_list
 
@@ -107,7 +134,7 @@ def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
     metadata_wanted = [k for k,v in metadata_config.items() if v == True]
     metadata_wanted.append('datetime')
     article_list = []
-    for article_url in article_url_list:
+    for article_url in tqdm(article_url_list, colour="white"):
         downloaded = trafilatura.fetch_url(article_url)
         metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
         if metadata is not None:
@@ -137,14 +164,14 @@ def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
                             k_v_new ={k:v}
                             metadata.update(k_v_new)
                         else:
-                            pass        
+                            pass     
         article_list.append(metadata)
     try:
         df = pd.DataFrame(article_list, columns = metadata_wanted)
         log.info(f'{df.shape[0]} articles with metadata were found.')
-    except ValueError:
+    except ValueError or TypeError:
         df = pd.DataFrame(columns=metadata_wanted)
-        log.error(f'No articles with metadata were found.')
+        log.error('No articles with metadata were found.')
     return df
 
 ### BEAUTIFULSOUP PIPELINE
@@ -153,7 +180,7 @@ def get_article_urls_bs_pipeline(homepage):
     article_url_list = []
     if len(homepage) < 80:
         sites_blocked_trafilatura = ["https://www.spiegel.de/"]
-        sites_requiring_javascript = ["https://www.handelsblatt.com/"]
+        sites_requiring_javascript = ["https://www.handelsblatt.com/", "https://www.derstandard.at/", "https://www.wiwo.de/"]
         if homepage not in sites_blocked_trafilatura and homepage not in sites_requiring_javascript:
             downloaded = trafilatura.fetch_url(homepage)
         else:
@@ -165,19 +192,22 @@ def get_article_urls_bs_pipeline(homepage):
             else:
                 r.raise_for_status()
                 downloaded = ""
-            
             javascript_search = re.search('enable JavaScript', downloaded)
-            if javascript_search:
+            if homepage in sites_requiring_javascript or javascript_search:
                 log.info(f"{homepage}: turning on JavaScript.")
                 options = webdriver.ChromeOptions()
                 options.add_argument('--headless=new') # comment out if you want to see what's happening
                 options.add_argument('--log-level=3')
-                options.add_argument('--lang=en')
+                # options.add_argument('--lang=en')
                 options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
                 options.add_experimental_option('excludeSwitches', ['enable-logging'])
                 options.add_argument('--enable-javascript')              
                 driver = webdriver.Chrome(options=options)
                 driver.get(homepage)
+                time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float 
+                old_driver = driver
+                driver = click_popup(old_driver)
+                time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float 
                 downloaded = driver.page_source
                 driver.quit()
         homepage_url = homepage
@@ -190,11 +220,13 @@ def get_article_urls_bs_pipeline(homepage):
         options = webdriver.ChromeOptions()
         options.add_argument('--headless=new') # comment out if you want to see what's happening
         options.add_argument('--log-level=3')
-        options.add_argument('--lang=en')
+        # options.add_argument('--lang=en')
         options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
         driver = webdriver.Chrome(options=options)
+
         driver.get(homepage)
+        time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float 
         downloaded = driver.page_source
         driver.quit()
         soup = BeautifulSoup(downloaded, 'html.parser')
@@ -228,7 +260,11 @@ def get_article_urls_bs_pipeline(homepage):
     if len(article_url_list) != 0:
         log.info(f'{homepage_url}: {len(article_url_list)} links have been found.\r')
     else:
-        log.error(f'{homepage_url}: No articles have been found. \r')
+        try:
+            log.error(f'{homepage_url}: No articles have been found. \r')
+        except TypeError as e:
+            article_url_list = []
+            log.error(f'{homepage_url}: No articles have been found.\r')
     return article_url_list
 
 
@@ -237,63 +273,73 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
     metadata_wanted = [k for k,v in metadata_config.items() if v == True]
     article_list = []
     metadata_wanted.append('datetime')
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless=new') # comment out if you want to see what's happening
+    options.add_argument('--log-level=3')
+    #options.add_argument('--lang=en')
+    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    options.add_argument('--enable-javascript')              
+    driver = webdriver.Chrome(options=options)
 
-    for article in article_url_list:
-
+    for article in tqdm(article_url_list, colour="white"):
         if len(article) < 300:
             sites_blocked_trafilatura = ["https://www.spiegel.de/"]
-            sites_requiring_javascript = ["https://www.handelsblatt.com/"]
+            sites_requiring_javascript = ["https://www.handelsblatt.com/", "https://www.derstandard.at/", "https://www.wiwo.de/"]
 
             homepage_finder = re.match(r".*?//www\..*?\..{2,3}/?", article)
             homepage_found = homepage_finder.group()
             if homepage_found not in sites_blocked_trafilatura and homepage_found not in sites_requiring_javascript:
                 downloaded = trafilatura.fetch_url(article)
+                if downloaded == None:
+                    downloaded = ""
+                if downloaded == None or len(downloaded) < 1:
+                        driver.get(article) 
+                        if article == article_url_list[0]:
+                            old_driver = driver
+                            driver = click_popup(old_driver)
+                            driver = old_driver
+                        time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float                
+                        downloaded = driver.page_source
             else:
-                if homepage_found not in sites_requiring_javascript:
+                try:
                     r = requests.get(article, timeout=5)
-                    #homepage_status = r.status_code
                     if r.status_code == requests.codes.ok:                
                         downloaded = r.text
                         r.close()
                         time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float
-
                     else:
                         r.raise_for_status()
-                else:
-                    options = webdriver.ChromeOptions()
-                    options.add_argument('--headless=new') # comment out if you want to see what's happening
-                    options.add_argument('--log-level=3')
-                    options.add_argument('--lang=en')
-                    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
-                    options.add_experimental_option('excludeSwitches', ['enable-logging'])
-                    options.add_argument('--enable-javascript')              
-                    driver = webdriver.Chrome(options=options)
-                    driver.delete_all_cookies()
-
-                    if article == article_url_list[0]:
-                        driver.get(article) 
-                        downloaded = driver.page_source
-                    else:
-                        driver.execute_script("window.open('" + str(article) + "');")
-                        time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float
-                        if len(driver.window_handles) != 1:
-                            driver.switch_to.window(window_name=driver.window_handles[0])
-                            time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100))
-                            driver.close()
-                            driver.switch_to.window(window_name=driver.window_handles[0])
-                            try:        
-                                downloaded = driver.page_source            
-                                time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float
-                                
-                            except Exception:
-                                downloaded == None
-                        else:
-                            downloaded == None
-                    driver.quit()
-
+                except TimeoutError:
+                    log.warning(f"{article} timed out. Continuing to next URL.")
+                    downloaded = ""
                 
+                if downloaded == None:
+                    
+                    driver.get(article) 
+                    if article == article_url_list[0]:
+                        old_driver = driver
+                        driver = click_popup(old_driver)
+                        driver = old_driver
+                    time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float                
+                    downloaded = driver.page_source
+                   
+                else: # Handelsblatt, Der Standard
+                    try:
+                        driver.get(article) 
+                        if article == article_url_list[0]:
+                            old_driver = driver
+                            driver = click_popup(old_driver)
+                            driver = old_driver
+                        time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float                
+                        downloaded = driver.page_source
+                    except TimeoutError:
+                        log.warning(f"{article} timed out. Continuing to next URL.")
+                        downloaded = ""
+                    
         else:
             downloaded = article
+
         if downloaded != None:
             javascript_search = re.match('enable Javascript', downloaded)
             if javascript_search:
@@ -305,9 +351,7 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
                 options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
                 options.add_experimental_option('excludeSwitches', ['enable-logging'])
                 driver = webdriver.Chrome(options=options)
-                driver.delete_all_cookies()
                 downloaded = driver.page_source
-                driver.quit()
             metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=False, include_comments=True)
             if metadata != None:
                 metadata = metadata.as_dict()
@@ -326,41 +370,35 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
         else:  
             metadata = {}
         if len(metadata) != 0:
+            
             for k,v in metadata.items():
-                        if k == 'text':
-                            v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
-                            v = f'"{v_new}"'
-                            k_v_new ={k:v}
-                            metadata.update(k_v_new)
-                        elif k == 'comments':
-                            v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
-                            v = f'"{v_new}"'
-                            k_v_new ={k:v}
-                            metadata.update(k_v_new)
-                        else:
-                            pass
-        article_list.append(metadata)
+                if k == 'text':
+                    v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
+                    v = f'"{v_new}"'
+                    k_v_new ={k:v}
+                    metadata.update(k_v_new)
+                elif k == 'comments':
+                    v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
+                    v = f'"{v_new}"'
+                    k_v_new ={k:v}
+                    metadata.update(k_v_new)
+                else:
+                    pass
+        if len(metadata) != 0:
+            article_list.append(metadata)
     df = pd.DataFrame(article_list, columns = metadata_wanted)
     if df.shape[0] != 0:
         log.info(f'{df.shape[0]} articles with metadata were found.')
     else:
         log.error(f'No articles with metadata were found.')
+    
     return df
 
 
 ### Filter-related functions
 
 def filter_urls(article_url_list, filter_choice):
-    ### later this url blacklist will be modular, same with the regex parameters
-    #section_blacklist = ["vermischtes", "impressum", "games", "dienste", "auto", "karriere", "familie", "fotostrecke", "service", "raetsel", "impressum", "updates-.*?", "ratgeber",
-    #                    "gesundheit", "fuermich", "thema", "kontakt", "deinspiegel", "spiegel", "sport", "reise", "start", "stil", "tests", "mediadaten", "produktempfehlung",
-    #                    "gutscheine", "app", "consent", "sub", "elibrary"] # offload into a config at some point, complete with synonyms for term
-    # open config, check which functions are checked (service by default), append to list
-
-
-    
-    
-                   
+                     
     if filter_choice == 'on': 
         filter_config = retrieve_config('filter_choice')
         filter_sections = retrieve_config('filter_sections')
@@ -438,9 +476,13 @@ def export_dataframe(df, homepage_url, output_folder):
     Path(output_subfolder).mkdir(exist_ok=True)
     try:
         df_path = Path(f"{output_subfolder}/{timestr}-{df_name}.csv")
-        df_nona = df.dropna()
-        df_nona.to_csv(df_path, index=False, mode='a', encoding="utf-8")
-        log.info(f'File generated at: {df_path}')
+        df.to_csv(df_path, index=False, mode='a', encoding="utf-8")
+        filesize_byte = os.path.getsize(df_path)
+        filesize = int(filesize_byte) / 1000
+        if filesize <= 10:
+            log.warning(f'Caution! Suspiciously small file generated at: {df_path} @ {filesize} KB')
+        else:
+            log.info(f'File generated at: {df_path} @ {filesize} KB')
     except:
         log.error('Unexpected error occurred. File could not be generated.')
     return df_path
