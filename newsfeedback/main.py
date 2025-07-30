@@ -1,4 +1,4 @@
-import trafilatura, click, re, time, yaml, os, schedule, requests, random, decimal
+import trafilatura, click, re, time, yaml, os, schedule, requests, random, decimal, warnings
 import pandas as pd
 from pathlib import Path
 from trafilatura import feeds
@@ -10,13 +10,26 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException,WebDriverException
+from urllib3.exceptions import ReadTimeoutError, HTTPError
+from sqlalchemy import create_engine, inspect
+from nltk.tokenize import RegexpTokenizer
+
 
 
 @click.group()
 def cli():
     pass
 
+def sql_engine(): # database info
+    user = ""
+    pw = ""
+    db = ""
+    host = ""
+    port = ""
+    uri = f"postgresql+psycopg2://{user}:{pw}@{host}:{port}/{db}"
+    alchemyEngine = create_engine(uri)  
+    return alchemyEngine
 
 def retrieve_config(type_config, tmp_path=False):
     directory = Path().resolve()
@@ -36,55 +49,55 @@ def retrieve_config(type_config, tmp_path=False):
     if type_config == "metadata":
         if Path(path_user_metadata_config).exists():
             config_file = Path(path_user_metadata_config)
-            log.info(f"Using the user-generated {type_config} config at {config_file}.")
+            #log.info(f"Using the user-generated {type_config} config at {config_file}.")
         else:
             config_file = Path(path_default_metadata_config)
-            log.info(f"Using the default {type_config} config at {config_file}.")
+            #log.info(f"Using the default {type_config} config at {config_file}.")
     elif type_config == "metadata_default":
         config_file = Path(path_default_metadata_config)
-        log.info(f"Using the default {type_config} config at {config_file}.")
+        #log.info(f"Using the default {type_config} config at {config_file}.")
     elif type_config == "metadata_test":
         config_file = Path(path_tmp_metadata_config)
         config_file.write_bytes(path_default_metadata_config.read_bytes())
-        log.info(f"Using the default {type_config} config at {config_file}.")
+        #log.info(f"Using the default {type_config} config at {config_file}.")
 
     elif type_config == "homepage":
         if Path(path_user_homepage_config).exists():
             config_file = Path(path_user_homepage_config)
-            log.info(f"Using the user-generated {type_config} config at {config_file}.")
+            # log.info(f"Using the user-generated {type_config} config at {config_file}.")
         else:
             config_file = Path(path_default_homepage_config)
-            log.info(f"Using the default {type_config} config at {config_file}.")
+            # log.info(f"Using the default {type_config} config at {config_file}.")
     elif type_config == "homepage_default":
         config_file = Path(path_default_homepage_config)
-        log.info(f"Using the default {type_config} config at {config_file}.")
+        #log.info(f"Using the default {type_config} config at {config_file}.")
     elif type_config == "homepage_test":
         config_file = Path(path_tmp_homepage_config)
         config_file.write_bytes(path_default_homepage_config.read_bytes())
-        log.info(f"Using the default {type_config} config at {config_file}.")
+        #log.info(f"Using the default {type_config} config at {config_file}.")
   
     elif type_config == "filter_choice":
         if Path(path_user_filter_choice_config).exists():
             config_file = Path(path_user_filter_choice_config)
-            log.info(f"Using the user-generated {type_config} config at {config_file}.")
+            #log.info(f"Using the user-generated {type_config} config at {config_file}.")
         else:
             config_file = Path(path_default_filter_choice_config)
-            log.info(f"Using the default {type_config} config at {config_file}.")
+            #log.info(f"Using the default {type_config} config at {config_file}.")
     elif type_config == "filter_choice_default":
         config_file = Path(path_default_filter_choice_config)
-        log.info(f"Using the default {type_config} config at {config_file}.")
+        #log.info(f"Using the default {type_config} config at {config_file}.")
     elif type_config == "filter_choice_test":
         config_file = Path(path_tmp_filter_choice_config)
         config_file.write_bytes(path_default_filter_choice_config.read_bytes())
-        log.info(f"Using the default {type_config} config at {config_file}.")
+        #log.info(f"Using the default {type_config} config at {config_file}.")
 
     elif type_config == "filter_sections":
         config_file = Path(path_default_filter_sections_config)
-        log.info(f"Using the default {type_config} config at {config_file}.")
+        #log.info(f"Using the default {type_config} config at {config_file}.")
     elif type_config == "filter_Sections_test":
         config_file = Path(path_tmp_filter_sections_config)
         config_file.write_bytes(path_default_filter_sections_config.read_bytes())
-        log.info(f"Using the default {type_config} config at {config_file}.")
+        #log.info(f"Using the default {type_config} config at {config_file}.")
 
     with config_file.open() as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
@@ -102,29 +115,89 @@ def click_popup(driver):
         WebDriverWait(driver, 20).until(EC.none_of(EC.presence_of_element_located((By.CLASS_NAME, "message-overlay"))))
         log.info("TCF consent button was successfully clicked.")
     except TimeoutException:
-        log.error("TCF consent button could not be found, trying again.")
+        log.info("TCF consent button could not be found, trying again.")
         try:
-            log.info(driver.page_source)
             find_button = driver.find_element(By.XPATH, "//button[contains(@class, 'sp_choice_type_11')]")
             find_button.click()
             driver.implicitly_wait(5)
             WebDriverWait(driver, 20).until(EC.none_of(EC.presence_of_element_located((By.CLASS_NAME, "message-overlay"))))
             log.info("TCF consent button was successfully clicked.")
         except TimeoutException:
-            log.error("TCF consent button could not be found, connection timed out.")    
+            log.info("TCF consent button could not be found, connection timed out.") 
+        except NoSuchElementException:
+            log.info("TCF could not be found. Continuing.")   
     except NoSuchElementException:
-        pass
+        log.info("TCF could not be found. Continuing.")
     return driver
+
+
+def duplicate_article_checker(homepage_url, article_url_list): # check if url is already in database or has been filtered out
+    warnings.simplefilter(action='ignore', category=UserWarning)
+    db_name = '' ## database info
+    homepage_url_selected = re.search(r"(www\.)?(\w|-|_)*?\.\w{2,5}(\.\w{2,})?\/", homepage_url)
+    homepage_url = homepage_url_selected.group(0)
+    hostname = homepage_url.replace('www.', '')
+    hostname = hostname.replace('/','')
+    user = ""
+    pw = ""
+    db = ""
+    host = ""
+    port = ""
+    uri = f"postgresql+psycopg2://{user}:{pw}@{host}:{port}/{db}"
+    alchemyEngine = create_engine(uri) 
+    with alchemyEngine.connect() as conn:
+        df = pd.read_sql(f"SELECT * FROM {db_name} WHERE hostname = '{hostname}'", con=conn.connection)
+    kick_list = list(dict.fromkeys(df['url'].values.tolist()))
+    with open("/data_collection/newsfeedback/default_article_blacklist.txt", "r+") as f:
+        for line in f:
+            kick_list.append(line.rstrip('\n'))
+
+    kick_list.append(homepage_url)
+    kick_list.append(homepage_url.replace('www.',''))
+    kick_list.append(homepage_url[:-1])
+    article_url_list_no_dups = list(dict.fromkeys(article_url_list))
+    article_list_kicked_entries = [article for article in article_url_list_no_dups if article not in kick_list]
+
+    return article_list_kicked_entries
+
+
+def baseline_filter(df): # check if article is relevant based on structure
+
+    warnings.simplefilter(action='ignore', category=UserWarning)
+    re1 = r"((latest|breaking)(.*?) (news|headlines)(( and | & |, fixtures and )(updates|analysis))?)|(reviewed .*?latest deals)|(boxing news.+? latest|stock.*?latest stocks)"
+    re2 = r"^\S*?( \S*?){,3} (\||-) (MIT .*? Review|The Independent|The Boston Globe|The Economist|UK|US|World|Culture|Life & Style|Sport|Business & Money)$|Travel Guides . Telegraph Travel"
+    re3 = r"^\S+$|^\S*?( \S*?){,2}$"
+    re4 =  r"((aktuelle.*?(news|themen|nachrichten|beitr.ge|lage und hintergr.nde|berichte|hintergr.nde|umfrage|tv Programm))|aktuelles (f.r|zu)|^aktuell$|regenradar|d.rre-karte|deutschlandfunk aktuell|news:.*?aktuell)"
+    re5 = r"Alle Tagesspiegel-Artikel vom (\d{2}\.){2}\d{4}"
+    re6 = r"page not found|^Datenschutzerklärung|^Nutzungsbedingungen|Allgemeine Gesch.ftsbedingungen|Impressum|^Widerruf Nutzerkennungen|Teilnahmebedingungen|terms (and|&) conditions|^Contact Us$|^Letters to the Editor$|(Privacy|User).*?(Cookie)?.*?Polic(y|ies)|Cookie Notice|Code of Conduct|Modern Slavery Statement|editorial.*?guidelines"
+    re7 = r"RTL\.de: Nachrichten, die Deutschland bewegen|Alle News, Geschichten und Highlights|Alles rund um wichtige Themen und Personen|Rechner, Lexika & Orakel: Kostenlose Online-Tools|die \d+ besten .*? im Vergleich"
+    regex_pattern = fr"({re1}|{re2}|{re3}|{re4}|{re5}|{re6}|{re7})"
+    filter_out_df = df[df['title'].str.contains(regex_pattern, na=False)]
+    url_kick_list = filter_out_df['url'].values.tolist()
+    final_url_kick_list = list(dict.fromkeys(url_kick_list))
+    url_list = []
+    with open("/data_collection/newsfeedback/default_article_blacklist.txt", "a+") as f:
+        for line in f:
+            url_list.append(line.rstrip('\n'))
+        url_list = list(dict.fromkeys(url_list))
+        for url in final_url_kick_list:
+            if url not in url_list:
+                f.write(f"{url}\n")
+        f.close()
+    remaining_df = df[~df['title'].str.contains(regex_pattern, na=False)]
+    return remaining_df
 
 ### TRAFILATURA PIPELINE
 
 def get_article_urls_trafilatura_pipeline(homepage_url):
     article_url_list = feeds.find_feed_urls(homepage_url)
+    unique_article_url_list = duplicate_article_checker(homepage_url, article_url_list)
     if len(article_url_list) != 0:
-        log.info(f'{homepage_url}: {len(article_url_list)} articles were found.\r')
+        log.info(f'{homepage_url}: {len(unique_article_url_list)} articles were found. [{len(article_url_list)-len(unique_article_url_list)} of {len(article_url_list)} articles removed]\r')
+        article_url_list = unique_article_url_list
     else:
         article_url_list = []
-        log.error(f'{homepage_url}: No articles were found.')
+        log.error(f'{homepage_url}: {len(article_url_list)} articles were found.')
     return article_url_list
 
 
@@ -132,13 +205,17 @@ def get_article_urls_trafilatura_pipeline(homepage_url):
 def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
     metadata_config = retrieve_config("metadata")
     metadata_wanted = [k for k,v in metadata_config.items() if v == True]
-    metadata_wanted.append('datetime')
+    metadata_wanted.append('datetime_retrieved')
     article_list = []
     for article_url in tqdm(article_url_list, colour="white"):
         downloaded = trafilatura.fetch_url(article_url)
-        metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
+        try:
+            metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=True)
+        except AttributeError:
+            metadata = None
         if metadata is not None:
-            metadata = metadata.as_dict()
+            if type(metadata) != dict:
+                metadata = metadata.as_dict()
             dict_keys = list(metadata.keys())
             dict_keys_to_pop = [key for key in dict_keys if key not in metadata_wanted]
             if len(dict_keys_to_pop) != 0:
@@ -146,31 +223,54 @@ def get_article_metadata_chain_trafilatura_pipeline(article_url_list):
                     metadata.pop(key, None)
             else:
                 metadata = metadata
-            datetime = time.strftime(r"%Y%m%d-%H%M")
-            datetime_column = {'datetime':datetime}
+            datetime = time.strftime(r"%Y-%m-%d %H:%M:%S")
+            pd_datetime = pd.to_datetime(datetime)
+            datetime_column = {'datetime_retrieved':pd_datetime}
             metadata.update(datetime_column)
         else:
             metadata = []
         if len(metadata) != 0:
             for k,v in metadata.items():
-                        if k == 'text':
-                            v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
-                            v = f'"{v_new}"'
-                            k_v_new ={k:v}
-                            metadata.update(k_v_new)
-                        elif k == 'comments':
-                            v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
-                            v = f'"{v_new}"'
-                            k_v_new ={k:v}
-                            metadata.update(k_v_new)
-                        else:
-                            pass     
+                if k == 'text':
+                    v_new = v.replace('"',"â€œ").replace("'","â€™").replace("\n","[Â¶]") # will this cause issues with URLs later? maybe!
+                    v = f'"{v_new}"'
+                    k_v_new ={k:v}
+                    metadata.update(k_v_new)
+                elif k == 'comments':
+                    v_new = v.replace('"',"â€œ").replace("'","â€™").replace("\n","[Â¶]") # will this cause issues with URLs later? maybe!
+                    v = f'"{v_new}"'
+                    k_v_new ={k:v}
+                    metadata.update(k_v_new)
+                elif k == 'url':
+                    if v != article_url:
+                        k_v_new = {k:f"{article_url}"}
+                        metadata.update(k_v_new)
+                    if re.search(r"^https?:\/\/image-de\.",v):
+                        k_v_new = {k:f"{v.replace('image-de','www')}"}
+                        metadata.update(k_v_new)
+                else:
+                    pass     
+            if "text" in metadata.keys():
+                    text_value = metadata["text"]
+                    tokenizer = RegexpTokenizer(r'\w+')
+                    token_count = tokenizer.tokenize(text_value)
+                    if "token_count" not in metadata_wanted or "character_count" not in metadata_wanted:
+                        metadata_wanted.append("token_count")
+                        metadata_wanted.append("character_count")
+                    metadata.update({"token_count":len(token_count)})
+                    metadata.update({"character_count":len(text_value)})
         article_list.append(metadata)
     try:
         df = pd.DataFrame(article_list, columns = metadata_wanted)
-        log.info(f'{df.shape[0]} articles with metadata were found.')
+        df['date'] = pd.to_datetime(df['date'], format= r'%Y-%m-%d')
+        df = df.rename(columns={'date':'date_published'})       
+        filtered_df = baseline_filter(df)
+        log.info(f'{filtered_df.shape[0]} articles with metadata were found. [{df.shape[0] - filtered_df.shape[0]} of {df.shape[0]} articles were removed]\r')
+        df = filtered_df
     except ValueError or TypeError:
         df = pd.DataFrame(columns=metadata_wanted)
+        df['date'] = pd.to_datetime(df['date'], format= r'%Y-%m-%d')
+        df = df.rename(columns={'date':'date_published'})
         log.error('No articles with metadata were found.')
     return df
 
@@ -180,17 +280,27 @@ def get_article_urls_bs_pipeline(homepage):
     article_url_list = []
     if len(homepage) < 80:
         sites_blocked_trafilatura = ["https://www.spiegel.de/"]
-        sites_requiring_javascript = ["https://www.handelsblatt.com/", "https://www.derstandard.at/", "https://www.wiwo.de/"]
+        sites_requiring_javascript = ["https://www.handelsblatt.com/", "https://www.derstandard.at/", "https://www.wiwo.de/", "https://www.politico.com/"]
         if homepage not in sites_blocked_trafilatura and homepage not in sites_requiring_javascript:
             downloaded = trafilatura.fetch_url(homepage)
         else:
-            r = requests.get(homepage, timeout=5)
-            if r.status_code == requests.codes.ok:                
-                downloaded = r.text
-                r.close()
-                time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100))
-            else:
-                r.raise_for_status()
+            headers = {'user-agent':'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.38 Mobile Safari/537.36'}
+            try:
+                r = requests.get(homepage, timeout=5, headers=headers)
+            
+
+                if r.status_code == requests.codes.ok:                
+                    downloaded = r.text
+                    r.close()
+                    time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100))
+                else:
+                    r.raise_for_status()
+                    downloaded = ""
+            except TimeoutError:
+                log.warning("Request timed out.")
+                downloaded = ""
+            except HTTPError:
+                log.warning(f"{HTTPError}")
                 downloaded = ""
             javascript_search = re.search('enable JavaScript', downloaded)
             if homepage in sites_requiring_javascript or javascript_search:
@@ -198,15 +308,25 @@ def get_article_urls_bs_pipeline(homepage):
                 options = webdriver.ChromeOptions()
                 options.add_argument('--headless=new') # comment out if you want to see what's happening
                 options.add_argument('--log-level=3')
+                #options.add_argument('--no-sandbox')
+                options.add_argument('--disable-dev-shm-usage')
+                #options.add_argument('--lang=en')
+                options.add_argument('--user-agent=Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.38 Mobile Safari/537.36')
+
                 # options.add_argument('--lang=en')
-                options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
+                #options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
                 options.add_experimental_option('excludeSwitches', ['enable-logging'])
-                options.add_argument('--enable-javascript')              
+                options.add_argument('--enable-javascript')    
+                
                 driver = webdriver.Chrome(options=options)
+                driver.command_executor.set_timeout(1000)
                 driver.get(homepage)
                 time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float 
-                old_driver = driver
-                driver = click_popup(old_driver)
+                try:
+                    old_driver = driver
+                    driver = click_popup(old_driver)
+                except ReadTimeoutError as e:
+                    log.warning(f"Popup clicker timed out.")
                 time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float 
                 downloaded = driver.page_source
                 driver.quit()
@@ -220,21 +340,57 @@ def get_article_urls_bs_pipeline(homepage):
         options = webdriver.ChromeOptions()
         options.add_argument('--headless=new') # comment out if you want to see what's happening
         options.add_argument('--log-level=3')
+        #options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
         # options.add_argument('--lang=en')
         options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
         driver = webdriver.Chrome(options=options)
-
-        driver.get(homepage)
-        time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float 
-        downloaded = driver.page_source
-        driver.quit()
+        driver.command_executor.set_timeout(1000)
+        try:
+            driver.get(homepage)
+            time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float 
+            downloaded = driver.page_source
+            '''directory = Path().resolve()
+            with open("web_test.txt", "w+") as text_file:
+                text_file.write(downloaded)
+                text_file.close()'''
+            driver.quit()
+            soup = BeautifulSoup(downloaded, 'html.parser')
+        except TimeoutError:
+            log.warning(f"{homepage} timed out. Continuing to next URL.")
+            downloaded = ""
+        except TypeError as e:
+            log.warning(f"{homepage} error: {e}. Continuing to next URL.")
+            downloaded = ""
+        except requests.ReadTimeout or ReadTimeoutError:
+            log.warning(f"{homepage} read timed out. Continuing to next URL.")
+            downloaded = ""
+        except WebDriverException as e: 
+            log.error(f"{homepage} error: {e}. Continuing to next URL.")
+            downloaded = ""
         soup = BeautifulSoup(downloaded, 'html.parser')
     for a in soup.find_all('a'):
         href = a.get('href')
-        http_check = re.search(r'(http)', f'{href}')
+        fix_ww = re.search(r'https?:\/\/ww\..+', f"{href}")
+        if fix_ww:
+            href_new = str(href).replace('//ww.', '//www.')
+            href = href_new
+        various_check = re.search(r"mailto\:|#", f'{href}')
+
+        if various_check != None:
+            continue
+        backslash_check = re.search(r'https?:\/{2}.*\.\w{2,3}\/$', f'{href}')
+        
+        if backslash_check != None:
+            continue
+
+        http_check = re.search(r'http', f'{href}')
+
         if href != None:
+
             if http_check == None:
+
                 http_url = f"{homepage_url}" + f"{href}"
                 double_slash_check = re.search(r"(?<!https:)(//)", http_url)
                 if double_slash_check:
@@ -246,25 +402,40 @@ def get_article_urls_bs_pipeline(homepage):
                 if double_url_check:
                     http_url = re.sub(r"\/{2}.*?\/{2}", "//", http_url)
                 article_url_list.append(http_url)
+                
+
             else:
-                homepage_de = re.search(r'(https://www\..+?\.\w{2,3}/de/)', homepage_url)
+                
+                homepage_de = re.search(r'(https?:\/\/(www\.)?.+?\.\w{2,3}/de/)', homepage_url)
                 if homepage_de:
                     homepage_split = homepage_de.group(0)
                 else:
-                    homepage_split = re.search(r'(https://www\..+?\.\w{2,3})', homepage_url).group(0)
-                homepage_check = re.search(fr'{homepage_split}/.+', href)
+                    homepage_split = re.search(r'(https?:\/\/(www\.)?.+?\.\w{2,3})', homepage_url).group(0) # get host name out of url -> adjust to allow web.host, tech.host, etc?
+                
+                      
+                homepage_check = re.search(fr'{homepage_split}\/.+', href) 
                 if homepage_check:
                     article_url_list.append(href)
-    article_url_list = list(dict.fromkeys(article_url_list)) # refactor these!
-    article_url_list = list(filter(lambda item: item is not None, article_url_list))
-    if len(article_url_list) != 0:
-        log.info(f'{homepage_url}: {len(article_url_list)} links have been found.\r')
+                else:
+
+                    homepage_url_no_www = homepage_url.replace('https://www.','')
+
+                    homepage_check = re.search(fr'{homepage_url_no_www.lower()}.+', href)
+                    if homepage_check:
+                        article_url_list.append(href)
+    article_url_list_to_clean = article_url_list
+    article_url_list_no_dupes = list(dict.fromkeys(article_url_list_to_clean)) # refactor these!
+    article_url_list_no_none = list(filter(lambda item: item is not None, article_url_list_no_dupes))
+    unique_article_url_list = duplicate_article_checker(homepage_url, article_url_list_no_none)
+    if len(unique_article_url_list) != 0:
+        log.info(f'{homepage_url}: {len(unique_article_url_list)} articles were found. [{len(article_url_list)-len(unique_article_url_list)} of {len(article_url_list)} articles removed]\r')
+        article_url_list = unique_article_url_list
     else:
         try:
-            log.error(f'{homepage_url}: No articles have been found. \r')
+            log.info(f'{homepage_url}: {len(article_url_list)} articles were found. [{len(article_url_list)-len(unique_article_url_list)} of {len(article_url_list)} articles removed]\r')
         except TypeError as e:
             article_url_list = []
-            log.error(f'{homepage_url}: No articles have been found.\r')
+            log.error(f'{homepage_url}: {len(article_url_list)} articles were found. [{len(article_url_list)-len(unique_article_url_list)} of {len(article_url_list)} articles removed]\r')
     return article_url_list
 
 
@@ -272,28 +443,37 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
     metadata_config = retrieve_config("metadata")
     metadata_wanted = [k for k,v in metadata_config.items() if v == True]
     article_list = []
-    metadata_wanted.append('datetime')
+    metadata_wanted.append('datetime_retrieved')
     options = webdriver.ChromeOptions()
     options.add_argument('--headless=new') # comment out if you want to see what's happening
     options.add_argument('--log-level=3')
+    #options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
     #options.add_argument('--lang=en')
-    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
+    #options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
+    options.add_argument('--user-agent=Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.38 Mobile Safari/537.36')
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    options.add_argument('--enable-javascript')              
+    options.add_argument('--enable-javascript')      
     driver = webdriver.Chrome(options=options)
+    driver.command_executor.set_timeout(1000)
+        
 
     for article in tqdm(article_url_list, colour="white"):
         if len(article) < 300:
             sites_blocked_trafilatura = ["https://www.spiegel.de/"]
-            sites_requiring_javascript = ["https://www.handelsblatt.com/", "https://www.derstandard.at/", "https://www.wiwo.de/"]
-
-            homepage_finder = re.match(r".*?//www\..*?\..{2,3}/?", article)
-            homepage_found = homepage_finder.group()
+            sites_requiring_javascript = ["https://www.handelsblatt.com/", "https://www.derstandard.at/", "https://www.wiwo.de/", "https://www.politico.com/"]
+            try:
+                homepage_finder = re.match( r".*?\/\/(www\.)?.*?\.\w{2,5}\/?", article)
+                homepage_found = homepage_finder.group()
+            except AttributeError:
+                log.warning(f"Error at: {article}")
+                continue
             if homepage_found not in sites_blocked_trafilatura and homepage_found not in sites_requiring_javascript:
                 downloaded = trafilatura.fetch_url(article)
                 if downloaded == None:
                     downloaded = ""
                 if downloaded == None or len(downloaded) < 1:
+                    try:    
                         driver.get(article) 
                         if article == article_url_list[0]:
                             old_driver = driver
@@ -301,6 +481,14 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
                             driver = old_driver
                         time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float                
                         downloaded = driver.page_source
+                    except TimeoutError or socket.timeout:
+                        log.warning(f"{article} timed out. Continuing to next URL.")
+                        downloaded = ""
+                    except requests.ReadTimeout or ReadTimeoutError:
+                        log.warning(f"{article} read timed out. Continuing to next URL.")
+                        downloaded = ""
+                    except WebDriverException:
+                        log.warning(f"{article} encountered a web driver exception. Continuing to next URL.")
             else:
                 try:
                     r = requests.get(article, timeout=5)
@@ -310,20 +498,30 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
                         time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float
                     else:
                         r.raise_for_status()
-                except TimeoutError:
+                        downloaded = ""
+                except TimeoutError or socket.timeout:
                     log.warning(f"{article} timed out. Continuing to next URL.")
                     downloaded = ""
-                
+                except requests.ReadTimeout or ReadTimeoutError:
+
+                    log.warning(f"{article} read timed out. Continuing to next URL.")
+                    downloaded = ""
                 if downloaded == None:
-                    
-                    driver.get(article) 
-                    if article == article_url_list[0]:
-                        old_driver = driver
-                        driver = click_popup(old_driver)
-                        driver = old_driver
-                    time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float                
-                    downloaded = driver.page_source
-                   
+                    try:
+                        driver.get(article) 
+                        if article == article_url_list[0]:
+                            old_driver = driver
+                            driver = click_popup(old_driver)
+                            driver = old_driver
+                        time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float                
+                        downloaded = driver.page_source
+                    except TimeoutError or socket.timeout:
+                        log.warning(f"{article} timed out. Continuing to next URL.")
+                        downloaded = ""
+                    except requests.ReadTimeout or ReadTimeoutError:
+                        log.warning(f"{article} read timed out. Continuing to next URL.")
+                        downloaded = ""
+
                 else: # Handelsblatt, Der Standard
                     try:
                         driver.get(article) 
@@ -333,13 +531,16 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
                             driver = old_driver
                         time.sleep(float(decimal.Decimal(random.randrange(100, 400))/100)) # randomize float                
                         downloaded = driver.page_source
-                    except TimeoutError:
+                    except TimeoutError or socket.timeout:
                         log.warning(f"{article} timed out. Continuing to next URL.")
+                        downloaded = ""
+                    except requests.ReadTimeout or ReadTimeoutError:
+                        log.warning(f"{article} read timed out. Continuing to next URL.")
                         downloaded = ""
                     
         else:
             downloaded = article
-
+        
         if downloaded != None:
             javascript_search = re.match('enable Javascript', downloaded)
             if javascript_search:
@@ -347,14 +548,29 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
                 options.add_argument('headless=new') # comment out if you want to see what's happening
                 options.add_argument('--log-level=3')
                 options.add_argument("--enable-javascript")              
-                options.add_argument('--lang=en')
-                options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
+                #options.add_argument('--lang=en')
+                #options.add_argument('--no-sandbox')
+                options.add_argument('--disable-dev-shm-usage')
+                options.add_argument('--user-agent=Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.38 Mobile Safari/537.36')
+                #options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0')
                 options.add_experimental_option('excludeSwitches', ['enable-logging'])
                 driver = webdriver.Chrome(options=options)
-                downloaded = driver.page_source
-            metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=False, include_comments=True)
+                driver.command_executor.set_timeout(1000)
+                try:
+                    driver.get(article)
+                    downloaded = driver.page_source
+                except TimeoutError or socket.timeout:
+                    log.warning(f"{article} timed out. Continuing to next URL.")
+                    
+                except requests.ReadTimeout or ReadTimeoutError:
+                    log.warning(f"{article} timed out. Continuing to next URL.")
+            try:
+                metadata = trafilatura.bare_extraction(downloaded, only_with_metadata=True, include_links=False, include_comments=True)
+            except AttributeError:
+                metadata = None
             if metadata != None:
-                metadata = metadata.as_dict()
+                if type(metadata) != dict:
+                    metadata = metadata.as_dict()
                 dict_keys = list(metadata.keys())
                 dict_keys_to_pop = [key for key in dict_keys if key not in metadata_wanted]
                 if len(dict_keys_to_pop) != 0:
@@ -362,36 +578,62 @@ def get_article_metadata_chain_bs_pipeline(article_url_list):
                         metadata.pop(key, None)
                 else:
                     metadata = metadata
-                datetime = time.strftime(r"%Y%m%d-%H%M")
-                datetime_column = {'datetime':datetime}
+                datetime = time.strftime(r"%Y-%m-%d %H:%M:%S")
+                pd_datetime = pd.to_datetime(datetime)
+                datetime_column = {'datetime_retrieved':pd_datetime}
                 metadata.update(datetime_column)
             else:
                 metadata = {}
         else:  
             metadata = {}
         if len(metadata) != 0:
-            
+
             for k,v in metadata.items():
                 if k == 'text':
-                    v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
+                    v_new = v.replace('"',"â€œ").replace("'","â€™").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
+                    if len(v_new) >= 10000:
+                        v_truncated = v_new[:10000]
+                        v_new = v_truncated
                     v = f'"{v_new}"'
                     k_v_new ={k:v}
                     metadata.update(k_v_new)
+                    
                 elif k == 'comments':
-                    v_new = v.replace('"',"“").replace("'","’").replace("\n","[¶]") # will this cause issues with URLs later? maybe!
+                    v_new = v.replace('"',"â€œ").replace("'","â€™").replace("\n","[]") # will this cause issues with URLs later? maybe!
                     v = f'"{v_new}"'
                     k_v_new ={k:v}
                     metadata.update(k_v_new)
+                elif k == 'url':
+                    if v != article:
+                        k_v_new = {k:f"{article}"}
+                        metadata.update(k_v_new)
+                    if re.search(r"^https?:\/\/image-de\.",v):
+                        k_v_new = {k:f"{v.replace('image-de','www')}"}
+                        metadata.update(k_v_new)
                 else:
                     pass
-        if len(metadata) != 0:
+            if "text" in metadata.keys():
+                text_value = metadata["text"]
+                if len(text_value) >= 10000:
+                    text_value = text_value[:10000]
+                tokenizer = RegexpTokenizer(r'\w+')
+                token_count = tokenizer.tokenize(text_value)
+                if "token_count" not in metadata_wanted or "character_count" not in metadata_wanted:
+                    metadata_wanted.append("token_count")
+                    metadata_wanted.append("character_count")
+                metadata.update({"token_count":f"{len(token_count)}"})
+                metadata.update({"character_count":f"{len(text_value)}"})
             article_list.append(metadata)
     df = pd.DataFrame(article_list, columns = metadata_wanted)
+    df['date'] = pd.to_datetime(df['date'], format= r'%Y-%m-%d')
+    df = df.rename(columns={'date':'date_published'})
     if df.shape[0] != 0:
-        log.info(f'{df.shape[0]} articles with metadata were found.')
+        filtered_df = baseline_filter(df)
+        log.info(f'{filtered_df.shape[0]} articles with metadata were found. [{df.shape[0] - filtered_df.shape[0]} of {df.shape[0]} articles were removed]\r')
+        df = filtered_df
     else:
-        log.error(f'No articles with metadata were found.')
-    
+        log.error(f'{df.shape[0]} articles with metadata were found.')
+    driver.quit()
     return df
 
 
@@ -456,15 +698,25 @@ def filter_urls(article_url_list, filter_choice):
         filtered_url_list = list(dict.fromkeys(filtered_url_list))    
         removed = (len(article_url_list)-len(filtered_url_list))
         if removed != 0:
-            log.info(f'Removed {removed} URLs.')
+            log.info(f'Filtered out {removed} URLs.')
         else:
-            log.error(f'Removed no URLs.')
+            log.error(f'Filtered out no URLs.')
     else:
         filtered_url_list = article_url_list
-        log.info('Removed no URLs, as intended.')
+        log.info('Filtered out no URLs, as intended.')
     return filtered_url_list
 
 ### Export
+def export_sql(df):
+
+    user = ""
+    pw = ""
+    db = ""
+    host = ""
+    port = ""
+    uri = f"postgresql+psycopg2://{user}:{pw}@{host}:{port}/{db}"
+    alchemyEngine = create_engine(uri) 
+    df.to_sql(name="", con=alchemyEngine, if_exists="append", index=False) ## database info
 
 def export_dataframe(df, homepage_url, output_folder):
     df_name = re.search(r"\..+?\.",f"{homepage_url}").group(0)
@@ -476,15 +728,31 @@ def export_dataframe(df, homepage_url, output_folder):
     Path(output_subfolder).mkdir(exist_ok=True)
     try:
         df_path = Path(f"{output_subfolder}/{timestr}-{df_name}.csv")
-        df.to_csv(df_path, index=False, mode='a', encoding="utf-8")
+        df = df.dropna(how='all')
+        kick_list = []
+        with open("/data_collection/newsfeedback/default_article_blacklist.txt", "r+") as f: ## to truly make sure no duplicates with kicklist remain
+            for line in f:
+                kick_list.append(line.rstrip('\n'))
+
+        kick_list.append(homepage_url)
+        kick_list.append(homepage_url.replace('www.',''))
+        kick_list.append(homepage_url[:-1])
+        df_no_dupes = df[~df.url.isin(kick_list)]
+        ### add in token count barrier -> ab 100 rein, bis 10.000
+        amount_of_articles = df['url'].shape[0]
+        df_no_dupes.to_csv(df_path, index=False, mode='a', encoding="utf-8")
         filesize_byte = os.path.getsize(df_path)
         filesize = int(filesize_byte) / 1000
         if filesize <= 10:
-            log.warning(f'Caution! Suspiciously small file generated at: {df_path} @ {filesize} KB')
+            log.warning(f'{amount_of_articles} articles. Caution! Suspiciously small file generated at: {df_path} @ {filesize} KB\n')
         else:
-            log.info(f'File generated at: {df_path} @ {filesize} KB')
-    except:
-        log.error('Unexpected error occurred. File could not be generated.')
+            log.info(f'{amount_of_articles} articles. File generated at: {df_path} @ {filesize} KB\n')
+    except Exception as ex:    
+        log.error(f'Unexpected error occurred: {ex} File could not be generated.\n')
+    try:
+        export_sql(df)
+    except Exception as ex:    
+        log.error(f'Unexpected error occurred: {ex} Data could not be written into database.\n')
     return df_path
 
 ### CHAINED PIPELINES
@@ -679,22 +947,28 @@ def add_homepage_url(homepage_url, chosen_pipeline, filter_option):
 
 def initiate_data_collection(output_folder):
     homepage_config = retrieve_config('homepage')
-    homepage_url_list = list(homepage_config.keys())
+    homepage_url_list_og = list(homepage_config.keys())
+    homepage_url_list = list(list(dict.fromkeys(homepage_url_list_og)))
+    log.info(f"Starting the collection of {len(homepage_url_list)} sources.")
     for homepage_url in homepage_url_list:
         get_pipeline_from_config(homepage_url, output_folder)
+        
+        
+    log.info(f"Finishing up the collection of {len(homepage_url_list)} sources.\n\n")
 
 @cli.command(help="Runs the full pipeline for the URLs saveds in either the user or default "
               "config file on schedule.")
-@click.option('-t', '--hour', default='6',
-              help='Run data extraction once every X hours. This is X, but defaults to 6.')
+#@click.option('-t', '--hour', default='6',
+#              help='Run data extraction once every X hours. This is X, but defaults to 6.')
 @click.option('-o', '--output-folder', default='newsfeedback/output',
               help="Defaults to newsfeedback's output folder.")
 def get_data(hour, output_folder):
     initiate_data_collection(output_folder)
-    schedule.every(int(hour)).hours.do(initiate_data_collection, output_folder)
+    ## uncomment if you want to schedule with the schedule library and not cron
+    '''schedule.every(int(hour)).hours.do(initiate_data_collection, output_folder)
     while True:
         schedule.run_pending()
-        time.sleep(1)
+        time.sleep(1)'''
 
 if __name__ == "main":
     cli()

@@ -88,7 +88,8 @@ class TestTrafilaturaPipeline(object):
         output_folder = tmp_path / "newsfeedback"
         output_folder.mkdir()
         filter_choice = 'off'
-        actual = chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder)
+        sql_output = 'no'
+        actual = chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder, sql_output)
         df_from_file = pd.read_csv(actual)
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message
@@ -100,7 +101,7 @@ class TestTrafilaturaPipeline(object):
         output_folder = tmp_path / "newsfeedback"
         output_folder.mkdir()
         filter_choice = 'off'
-        actual = chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder)
+        actual = chained_trafilatura_pipeline(homepage_url, filter_choice, output_folder, sql_output='no')
         df_from_file = pd.read_csv(actual)
         message = ("The exported dataframe is not empty, despite this being expected.")                
         assert df_from_file.shape[0] == 0, message
@@ -155,7 +156,7 @@ class TestBeautifulSoupPipeline(object):
         output_folder = tmp_path / "newsfeedback"
         output_folder.mkdir()
         filter_choice = 'off'
-        actual = chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)
+        actual = chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder, sql_output='no')
         df_from_file = pd.read_csv(actual)
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message  
@@ -167,7 +168,7 @@ class TestBeautifulSoupPipeline(object):
         output_folder = tmp_path / "newsfeedback"
         output_folder.mkdir()
         filter_choice = 'off'
-        actual = chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder)
+        actual = chained_beautifulsoup_pipeline(homepage_url, filter_choice, output_folder, sql_output='no')
         df_from_file = pd.read_csv(actual)
         message = ("The exported dataframe is empty.")                
         assert df_from_file.shape[0] != 0, message  
